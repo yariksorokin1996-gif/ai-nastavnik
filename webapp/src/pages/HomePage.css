@@ -1,0 +1,72 @@
+.home-header {
+  margin-bottom: var(--space-7);
+}
+
+.home-header h1 {
+  font-family: var(--font-heading);
+}
+
+.home-streak {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.home-section {
+  margin-bottom: var(--space-7);
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  margin-bottom: var(--space-4);
+  color: var(--text-primary);
+}
+
+/* Карта таро */
+.tarot-card {
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+}
+
+.tarot-card__emoji {
+  font-size: 48px;
+  margin-bottom: var(--space-4);
+}
+
+/* Задание */
+.task-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.task-card__check {
+  font-size: 20px;
+  line-height: 1;
+  margin-top: 1px;
+  color: var(--text-disabled);
+}
+
+/* Режимы */
+.modes-grid {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* Заглушка целей */
+.goals-placeholder {
+  padding: var(--space-8) var(--space-5);
+}
+
+/* CTA */
+.home-cta {
+  position: fixed;
+  bottom: 72px;
+  left: var(--space-6);
+  right: var(--space-6);
+  padding-bottom: var(--space-3);
+  z-index: 50;
+}
