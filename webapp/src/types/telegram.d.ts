@@ -40,6 +40,9 @@ interface TelegramWebApp {
   openInvoice: (url: string, cb?: (status: string) => void) => void;
   requestFullscreen: () => void;
   disableVerticalSwipes: () => void;
+  setHeaderColor: (color: string) => void;
+  setBackgroundColor: (color: string) => void;
+  setBottomBarColor: (color: string) => void;
 }
 
 interface Window {

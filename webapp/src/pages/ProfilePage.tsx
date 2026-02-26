@@ -1,4 +1,4 @@
-import { Section, Cell, Avatar, Title, Caption, Text, Button } from '@telegram-apps/telegram-ui';
+import { Section, Cell, Avatar, Title, Caption } from '@telegram-apps/telegram-ui';
 import { useUser } from '../hooks/useUser';
 import { updateStyle } from '../api';
 
@@ -33,7 +33,7 @@ export function ProfilePage() {
       {/* Профиль */}
       <div className="profile-header">
         <Avatar
-          size={72}
+          size={96}
           src={photoUrl}
           acronym={name[0]}
         />
