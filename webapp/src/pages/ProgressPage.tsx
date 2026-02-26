@@ -1,6 +1,5 @@
-import { GoalCard } from '../components/GoalCard';
+import { Section, Cell, Title, Caption, Text, Progress, Placeholder } from '@telegram-apps/telegram-ui';
 import { useUser } from '../hooks/useUser';
-import './ProgressPage.css';
 
 const PHASE_LABELS: Record<string, string> = {
   onboarding: 'Знакомство',
@@ -21,57 +20,67 @@ const PHASE_PROGRESS: Record<string, number> = {
 export function ProgressPage() {
   const { user } = useUser();
   const phase = user?.phase || 'onboarding';
-  const hasGoal = !!user?.goal;
+
+  const today = new Date().getDate();
+  const sessionsCount = user?.sessions_count || 0;
 
   return (
-    <div className="scroll-area">
-      <h1 className="heading-lg animate-in" style={{ marginBottom: 'var(--space-7)' }}>
-        Мой путь
-      </h1>
+    <>
+      <div className="page-title">
+        <Title level="1" weight="1">Мой путь</Title>
+      </div>
 
       {/* Цели */}
-      <section className="progress-section animate-in" style={{ animationDelay: '50ms' }}>
-        <div className="goals-list">
-          {hasGoal ? (
-            <GoalCard
-              icon="🎯"
-              sphere={user?.area || 'Общая'}
-              title={user?.goal || ''}
-              progress={PHASE_PROGRESS[phase] || 0}
-              currentStep={PHASE_LABELS[phase] || phase}
-            />
-          ) : (
-            <>
-              <GoalCard
-                icon="✨"
-                sphere="Самореализация"
-                title="Цель будет определена в процессе"
-                progress={PHASE_PROGRESS[phase] || 0}
-                currentStep={PHASE_LABELS[phase] || 'Ожидает постановки цели'}
-              />
-              <GoalCard
-                icon="💰"
-                sphere="Деньги"
-                title="Цель будет определена в процессе"
-                progress={0}
-                currentStep="Ожидает постановки цели"
-              />
-            </>
-          )}
-        </div>
-      </section>
+      <Section header="Цели">
+        {user?.goal ? (
+          <Cell
+            before={<span className="cell-emoji">🎯</span>}
+            subtitle={PHASE_LABELS[phase] || phase}
+            after={<Caption>{PHASE_PROGRESS[phase] || 0}%</Caption>}
+            multiline
+          >
+            {user.goal}
+            <div className="cell-progress">
+              <Progress value={PHASE_PROGRESS[phase] || 0} />
+            </div>
+          </Cell>
+        ) : (
+          <>
+            <Cell
+              before={<span className="cell-emoji">✨</span>}
+              subtitle={PHASE_LABELS[phase] || 'Ожидает постановки'}
+              after={<Caption>{PHASE_PROGRESS[phase] || 0}%</Caption>}
+              multiline
+            >
+              Самореализация
+              <div className="cell-progress">
+                <Progress value={PHASE_PROGRESS[phase] || 0} />
+              </div>
+            </Cell>
+            <Cell
+              before={<span className="cell-emoji">💰</span>}
+              subtitle="Ожидает постановки"
+              after={<Caption>0%</Caption>}
+              multiline
+            >
+              Деньги
+              <div className="cell-progress">
+                <Progress value={0} />
+              </div>
+            </Cell>
+          </>
+        )}
+      </Section>
 
       {/* Календарь */}
-      <section className="progress-section animate-in" style={{ animationDelay: '100ms' }}>
-        <h2 className="heading-sm section-title">Февраль</h2>
+      <Section header="Февраль">
         <div className="calendar-grid">
           {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
             <span key={d} className="calendar-header">{d}</span>
           ))}
           {Array.from({ length: 28 }, (_, i) => {
             const dayNum = i + 1;
-            const today = new Date().getDate();
-            const isDone = dayNum < today && (user?.sessions_count || 0) > 0;
+            const isDone = dayNum < today && sessionsCount > 0;
             const isToday = dayNum === today;
             return (
               <span
@@ -83,23 +92,28 @@ export function ProgressPage() {
             );
           })}
         </div>
-        <div className="streak-info">
-          <span>Серия: {Math.max(user?.sessions_count || 0, 1)} день 🔥</span>
-          <span>Сессий: {user?.sessions_count || 0}</span>
-        </div>
-      </section>
+      </Section>
+
+      {/* Статистика */}
+      <Section header="Статистика">
+        <Cell after={<Text>{Math.max(sessionsCount, 1)} 🔥</Text>}>
+          Серия дней
+        </Cell>
+        <Cell after={<Text>{sessionsCount}</Text>}>
+          Всего сессий
+        </Cell>
+      </Section>
 
       {/* Недельный отчёт */}
-      <section className="progress-section animate-in" style={{ animationDelay: '150ms' }}>
-        <h2 className="heading-sm section-title">Недельный отчёт</h2>
-        <div className="card">
-          <p className="body-md" style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
-            {(user?.sessions_count || 0) >= 7
-              ? 'Отчёт формируется...'
-              : 'Пока недостаточно данных.\nОбщайся с наставником — отчёт появится через неделю'}
-          </p>
-        </div>
-      </section>
-    </div>
+      <Section header="Недельный отчёт">
+        <Placeholder description={
+          sessionsCount >= 7
+            ? 'Отчёт формируется...'
+            : 'Недостаточно данных. Отчёт появится через неделю'
+        }>
+          📊
+        </Placeholder>
+      </Section>
+    </>
   );
 }
