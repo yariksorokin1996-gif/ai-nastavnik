@@ -12,22 +12,64 @@ html, body, #root {
   overflow: hidden;
 }
 
-/* Force light theme colors regardless of Telegram theme */
-:root {
-  --bg: #F2F2F7;
-  --bg-card: #FFFFFF;
-  --text: #000000;
-  --text-secondary: #8E8E93;
-  --text-tertiary: #AEAEB2;
-  --accent: #007AFF;
-  --accent-green: #34C759;
-  --separator: rgba(60, 60, 67, 0.12);
+/* ===== FORCE LIGHT THEME — override Telegram dark mode ===== */
+:root,
+html,
+body,
+#root,
+.tgui--light,
+.tgui--dark,
+[data-appearance="light"],
+[data-appearance="dark"] {
+  /* Our app variables */
+  --bg: #F2F2F7 !important;
+  --bg-card: #FFFFFF !important;
+  --text: #000000 !important;
+  --text-secondary: #8E8E93 !important;
+  --text-tertiary: #AEAEB2 !important;
+  --accent: #007AFF !important;
+  --accent-green: #34C759 !important;
+  --separator: rgba(60, 60, 67, 0.12) !important;
+
+  /* Override Telegram injected theme variables */
+  --tg-theme-bg-color: #F2F2F7 !important;
+  --tg-theme-text-color: #000000 !important;
+  --tg-theme-hint-color: #8E8E93 !important;
+  --tg-theme-link-color: #007AFF !important;
+  --tg-theme-button-color: #007AFF !important;
+  --tg-theme-button-text-color: #FFFFFF !important;
+  --tg-theme-secondary-bg-color: #FFFFFF !important;
+  --tg-theme-header-bg-color: #FFFFFF !important;
+  --tg-theme-accent-text-color: #007AFF !important;
+  --tg-theme-section-bg-color: #FFFFFF !important;
+  --tg-theme-section-header-text-color: #8E8E93 !important;
+  --tg-theme-subtitle-text-color: #8E8E93 !important;
+  --tg-theme-destructive-text-color: #FF3B30 !important;
+  --tg-theme-section-separator-color: rgba(60, 60, 67, 0.12) !important;
+  --tg-theme-bottom-bar-bg-color: #FFFFFF !important;
+
+  /* Override telegram-ui internal variables */
+  --tgui--bg_color: #F2F2F7 !important;
+  --tgui--secondary_bg_color: #F2F2F7 !important;
+  --tgui--text_color: #000000 !important;
+  --tgui--hint_color: #8E8E93 !important;
+  --tgui--link_color: #007AFF !important;
+  --tgui--button_color: #007AFF !important;
+  --tgui--button_text_color: #FFFFFF !important;
+  --tgui--header_bg_color: #FFFFFF !important;
+  --tgui--section_bg_color: #FFFFFF !important;
+  --tgui--section_header_text_color: #8E8E93 !important;
+  --tgui--subtitle_text_color: #8E8E93 !important;
+  --tgui--destructive_text_color: #FF3B30 !important;
+  --tgui--section_separator_color: rgba(60, 60, 67, 0.12) !important;
+
+  color-scheme: light !important;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
-  background: var(--bg) !important;
-  color: var(--text);
+  background-color: #F2F2F7 !important;
+  color: #000000 !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
@@ -38,6 +80,7 @@ body {
   display: flex;
   flex-direction: column;
   height: var(--viewport-height);
+  background-color: #F2F2F7 !important;
 }
 
 /* Scrollable page content */
@@ -48,7 +91,7 @@ body {
   -webkit-overflow-scrolling: touch;
   padding-top: var(--safe-top);
   padding-bottom: calc(80px + var(--safe-bottom));
-  background: var(--bg);
+  background-color: #F2F2F7 !important;
 }
 
 /* Large title at top of page */
