@@ -38,7 +38,7 @@ export function ProfilePage() {
           acronym={name[0]}
         />
         <Title level="2" weight="1">{name}</Title>
-        <Caption style={{ color: 'var(--tg-theme-hint-color)' }}>
+        <Caption style={{ color: '#8E8E93' }}>
           Сессий: {user?.sessions_count || 0} · {user?.is_premium ? 'Про' : 'Бесплатно'}
         </Caption>
       </div>
@@ -56,7 +56,7 @@ export function ProfilePage() {
       <Section header="Наставник">
         <Cell
           before={<span className="cell-emoji">🎯</span>}
-          after={<Caption>{STYLE_NAMES[user?.coaching_style || 2]}</Caption>}
+          after={<Caption style={{ color: '#8E8E93' }}>{STYLE_NAMES[user?.coaching_style || 2]}</Caption>}
           onClick={handleStyleChange}
         >
           Стиль коучинга
@@ -67,25 +67,25 @@ export function ProfilePage() {
       <Section header="Настройки">
         <Cell
           before={<span className="cell-emoji">⏰</span>}
-          after={<Caption>08:00</Caption>}
+          after={<Caption style={{ color: '#8E8E93' }}>08:00</Caption>}
         >
           Утреннее сообщение
         </Cell>
         <Cell
           before={<span className="cell-emoji">🌙</span>}
-          after={<Caption>21:00</Caption>}
+          after={<Caption style={{ color: '#8E8E93' }}>21:00</Caption>}
         >
           Вечерний чек-ин
         </Cell>
         <Cell
           before={<span className="cell-emoji">🔔</span>}
-          after={<Caption>Включены</Caption>}
+          after={<Caption style={{ color: '#8E8E93' }}>Включены</Caption>}
         >
           Напоминания
         </Cell>
         <Cell
           before={<span className="cell-emoji">📍</span>}
-          after={<Caption>Авто</Caption>}
+          after={<Caption style={{ color: '#8E8E93' }}>Авто</Caption>}
         >
           Часовой пояс
         </Cell>

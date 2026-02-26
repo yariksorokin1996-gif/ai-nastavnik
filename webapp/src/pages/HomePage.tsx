@@ -52,7 +52,7 @@ export function HomePage() {
     <>
       <div className="page-title">
         <Title level="1" weight="1">Привет, {firstName}!</Title>
-        <Caption style={{ color: 'var(--tg-theme-hint-color)', marginTop: 4 }}>
+        <Caption style={{ color: '#8E8E93', marginTop: 4 }}>
           День {sessionsCount || 1} · Серия: {streak || 1} 🔥
         </Caption>
       </div>
@@ -62,7 +62,7 @@ export function HomePage() {
         <div className="tarot-card">
           <div className="tarot-card__emoji">🃏</div>
           <Text weight="2">Карта дня</Text>
-          <Caption style={{ color: 'var(--tg-theme-hint-color)', marginTop: 4 }}>
+          <Caption style={{ color: '#8E8E93', marginTop: 4 }}>
             {phase === 'onboarding'
               ? 'Пройди онбординг для первой карты'
               : 'Нажми, чтобы получить расклад'}
@@ -113,7 +113,7 @@ export function HomePage() {
           <Cell
             before={<span className="cell-emoji">🎯</span>}
             subtitle={PHASE_LABELS[phase] || phase}
-            after={<Caption>{PHASE_PROGRESS[phase] || 0}%</Caption>}
+            after={<Caption style={{ color: '#007AFF' }}>{PHASE_PROGRESS[phase] || 0}%</Caption>}
             multiline
           >
             {user.goal}

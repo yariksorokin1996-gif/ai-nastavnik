@@ -14,7 +14,7 @@ export function AstroPage() {
     <>
       <div className="page-title">
         <Title level="1" weight="1">Астро</Title>
-        <Caption style={{ color: 'var(--tg-theme-hint-color)', marginTop: 4 }}>
+        <Caption style={{ color: '#8E8E93', marginTop: 4 }}>
           Твоё звёздное пространство 🌙
         </Caption>
       </div>
@@ -29,7 +29,7 @@ export function AstroPage() {
             <>
               <div className="tarot-card__emoji">✦</div>
               <Text weight="2">Карта дня</Text>
-              <Caption style={{ color: 'var(--tg-theme-hint-color)', marginTop: 4 }}>
+              <Caption style={{ color: '#8E8E93', marginTop: 4 }}>
                 Нажми, чтобы открыть
               </Caption>
             </>
@@ -37,7 +37,7 @@ export function AstroPage() {
             <>
               <div className="tarot-card__emoji">👑</div>
               <Text weight="1">Императрица</Text>
-              <Caption style={{ color: 'var(--tg-theme-hint-color)', marginTop: 8, textAlign: 'center', lineHeight: '18px' }}>
+              <Caption style={{ color: '#8E8E93', marginTop: 8, textAlign: 'center', lineHeight: '18px' }}>
                 Императрица говорит о внутренней силе и решительности.
                 Сегодня ты способна на большее, чем думаешь.
               </Caption>
@@ -58,7 +58,7 @@ export function AstroPage() {
       {/* Мини-гороскоп */}
       <Section header="Мини-гороскоп">
         <Cell before={<span className="cell-emoji">🌙</span>} multiline>
-          <Caption style={{ color: 'var(--tg-theme-hint-color)' }}>
+          <Caption style={{ color: '#8E8E93' }}>
             Пройди онбординг и введи дату рождения для персонального гороскопа
           </Caption>
         </Cell>
@@ -69,7 +69,7 @@ export function AstroPage() {
         <Cell
           before={<span className="cell-emoji">🔮</span>}
           subtitle="Подробное чтение карт на ситуацию"
-          after={<Lock size={16} color="var(--tg-theme-hint-color)" />}
+          after={<Lock size={16} color="#C7C7CC" />}
           multiline
         >
           Полный расклад
@@ -77,7 +77,7 @@ export function AstroPage() {
         <Cell
           before={<span className="cell-emoji">💑</span>}
           subtitle="Анализ отношений по датам рождения"
-          after={<Lock size={16} color="var(--tg-theme-hint-color)" />}
+          after={<Lock size={16} color="#C7C7CC" />}
           multiline
         >
           Совместимость
@@ -85,7 +85,7 @@ export function AstroPage() {
         <Cell
           before={<span className="cell-emoji">📅</span>}
           subtitle="Персональный прогноз с рекомендациями"
-          after={<Lock size={16} color="var(--tg-theme-hint-color)" />}
+          after={<Lock size={16} color="#C7C7CC" />}
           multiline
         >
           Прогноз на месяц

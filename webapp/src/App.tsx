@@ -17,6 +17,10 @@ function App() {
       tg.ready();
       tg.expand();
       try { tg.disableVerticalSwipes(); } catch {}
+      // Force light header and background
+      try { tg.setHeaderColor('#FFFFFF'); } catch {}
+      try { tg.setBackgroundColor('#F2F2F7'); } catch {}
+      try { tg.setBottomBarColor('#FFFFFF'); } catch {}
     }
   }, []);
 
@@ -35,7 +39,7 @@ function App() {
   };
 
   return (
-    <AppRoot>
+    <AppRoot appearance="light">
       <div className="page">
         {renderPage()}
       </div>
