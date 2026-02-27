@@ -89,6 +89,10 @@ class StyleUpdate(BaseModel):
     coaching_style: int
 
 
+class ModeUpdate(BaseModel):
+    mode: str
+
+
 # --- Endpoints ---
 
 @app.get("/health")
@@ -177,6 +181,21 @@ async def update_style(
         raise HTTPException(status_code=400, detail="Style must be 1, 2, or 3")
 
     await update_user(tg["telegram_id"], coaching_style=body.coaching_style)
+    return {"ok": True}
+
+
+@app.put("/api/user/mode")
+async def update_mode(
+    body: ModeUpdate,
+    authorization: str = Header(None),
+):
+    """Сменить режим общения из Mini App."""
+    tg = _get_telegram_user(authorization)
+    allowed = ("coach", "friend", "astrologer")
+    if body.mode not in allowed:
+        raise HTTPException(status_code=400, detail=f"Mode must be one of {allowed}")
+
+    await update_user(tg["telegram_id"], mode=body.mode)
     return {"ok": True}
 
 

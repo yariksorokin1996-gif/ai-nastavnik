@@ -1,4 +1,4 @@
-import { updateStyle } from '../api';
+import { updateStyle, updateMode } from '../api';
 import type { UserState } from '../hooks/useUser';
 
 const MODES = [
@@ -62,10 +62,15 @@ export function ProfilePage({ userState }: ProfilePageProps) {
     }
   };
 
-  const handleModeSelect = (modeId: string) => {
+  const handleModeSelect = async (modeId: string) => {
     if (!user) return;
     setUser({ ...user, mode: modeId });
     tg?.HapticFeedback?.selectionChanged();
+    try {
+      await updateMode(modeId);
+    } catch {
+      tg?.HapticFeedback?.notificationOccurred('error');
+    }
   };
 
   const handleComingSoon = () => {
@@ -120,16 +125,6 @@ export function ProfilePage({ userState }: ProfilePageProps) {
               <span className="mode-item__label">{mode.label}</span>
             </div>
           ))}
-        </div>
-        <div style={{
-          fontSize: 12,
-          color: 'var(--text-tertiary)',
-          textAlign: 'center',
-          marginTop: -4,
-          marginBottom: 12,
-          padding: '0 var(--page-padding)',
-        }}>
-          Сохранение выбора — скоро
         </div>
       </div>
 

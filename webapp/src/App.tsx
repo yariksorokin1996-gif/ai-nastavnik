@@ -55,20 +55,22 @@ function App() {
 
   return (
     <AppRoot appearance="light">
-      {/* All pages rendered, inactive hidden via display:none — no re-mount, no re-fetch */}
-      <div className="page" style={{ display: activeTab === 'home' ? undefined : 'none' }}>
-        <div className={animating && activeTab === 'home' ? 'animate-in' : ''}>
-          <HomePage userState={userState} />
+      {/* Single .page container for correct flex layout + scroll */}
+      <div className="page">
+        <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
+          <div className={animating && activeTab === 'home' ? 'animate-in' : ''}>
+            <HomePage userState={userState} />
+          </div>
         </div>
-      </div>
-      <div className="page" style={{ display: activeTab === 'progress' ? undefined : 'none' }}>
-        <div className={animating && activeTab === 'progress' ? 'animate-in' : ''}>
-          <ProgressPage userState={userState} />
+        <div style={{ display: activeTab === 'progress' ? 'block' : 'none' }}>
+          <div className={animating && activeTab === 'progress' ? 'animate-in' : ''}>
+            <ProgressPage userState={userState} />
+          </div>
         </div>
-      </div>
-      <div className="page" style={{ display: activeTab === 'profile' ? undefined : 'none' }}>
-        <div className={animating && activeTab === 'profile' ? 'animate-in' : ''}>
-          <ProfilePage userState={userState} />
+        <div style={{ display: activeTab === 'profile' ? 'block' : 'none' }}>
+          <div className={animating && activeTab === 'profile' ? 'animate-in' : ''}>
+            <ProfilePage userState={userState} />
+          </div>
         </div>
       </div>
 

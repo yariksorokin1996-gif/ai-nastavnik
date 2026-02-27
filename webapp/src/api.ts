@@ -77,3 +77,10 @@ export function updateStyle(coaching_style: number): Promise<{ ok: boolean }> {
     body: JSON.stringify({ coaching_style }),
   });
 }
+
+export function updateMode(mode: string): Promise<{ ok: boolean }> {
+  return apiFetch('/api/user/mode', {
+    method: 'PUT',
+    body: JSON.stringify({ mode }),
+  });
+}

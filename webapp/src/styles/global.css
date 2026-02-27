@@ -461,9 +461,10 @@ body {
   right: 0;
   display: flex;
   justify-content: space-evenly;
-  background: #FFFFFF;
-  border-top: 0.5px solid rgba(0, 0, 0, 0.12);
-  padding: 6px 0 max(20px, var(--safe-bottom));
+  align-items: flex-start;
+  background: #F7F7F7;
+  border-top: 0.33px solid rgba(0, 0, 0, 0.3);
+  padding: 5px 0 max(20px, var(--safe-bottom));
   z-index: 100;
 }
 
@@ -472,9 +473,9 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 4px 12px;
-  min-height: 44px;
+  gap: 1px;
+  padding: 2px 16px;
+  min-width: 64px;
   background: none;
   border: none;
   cursor: pointer;
@@ -484,17 +485,19 @@ body {
 }
 
 .tab-item:active {
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .tab-label {
   font-size: 10px;
   font-weight: 500;
-  color: var(--text-tertiary);
+  color: #999999;
+  letter-spacing: 0.01em;
 }
 
 .tab-item--active .tab-label {
   color: var(--accent);
+  font-weight: 600;
 }
 
 /* --- Tappable cell — iOS press highlight --- */
