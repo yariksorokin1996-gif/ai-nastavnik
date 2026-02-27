@@ -1,5 +1,9 @@
 @import './tokens.css';
 
+/* ========================================
+   AI Наставник — iOS / Apple Health style
+   ======================================== */
+
 *, *::before, *::after {
   margin: 0;
   padding: 0;
@@ -21,45 +25,33 @@ body,
 .tgui--dark,
 [data-appearance="light"],
 [data-appearance="dark"] {
-  /* Our app variables */
-  --bg: #F2F2F7 !important;
-  --bg-card: #FFFFFF !important;
-  --text: #000000 !important;
-  --text-secondary: #8E8E93 !important;
-  --text-tertiary: #AEAEB2 !important;
-  --accent: #007AFF !important;
-  --accent-green: #34C759 !important;
-  --separator: rgba(60, 60, 67, 0.12) !important;
-
-  /* Override Telegram injected theme variables */
   --tg-theme-bg-color: #F2F2F7 !important;
   --tg-theme-text-color: #000000 !important;
-  --tg-theme-hint-color: #8E8E93 !important;
-  --tg-theme-link-color: #007AFF !important;
-  --tg-theme-button-color: #007AFF !important;
+  --tg-theme-hint-color: #6C6C70 !important;
+  --tg-theme-link-color: #FF6B8A !important;
+  --tg-theme-button-color: #FF6B8A !important;
   --tg-theme-button-text-color: #FFFFFF !important;
   --tg-theme-secondary-bg-color: #FFFFFF !important;
   --tg-theme-header-bg-color: #FFFFFF !important;
-  --tg-theme-accent-text-color: #007AFF !important;
+  --tg-theme-accent-text-color: #FF6B8A !important;
   --tg-theme-section-bg-color: #FFFFFF !important;
-  --tg-theme-section-header-text-color: #8E8E93 !important;
-  --tg-theme-subtitle-text-color: #8E8E93 !important;
+  --tg-theme-section-header-text-color: #6C6C70 !important;
+  --tg-theme-subtitle-text-color: #6C6C70 !important;
   --tg-theme-destructive-text-color: #FF3B30 !important;
   --tg-theme-section-separator-color: rgba(60, 60, 67, 0.12) !important;
   --tg-theme-bottom-bar-bg-color: #FFFFFF !important;
 
-  /* Override telegram-ui internal variables */
   --tgui--bg_color: #F2F2F7 !important;
   --tgui--secondary_bg_color: #F2F2F7 !important;
   --tgui--text_color: #000000 !important;
-  --tgui--hint_color: #8E8E93 !important;
-  --tgui--link_color: #007AFF !important;
-  --tgui--button_color: #007AFF !important;
+  --tgui--hint_color: #6C6C70 !important;
+  --tgui--link_color: #FF6B8A !important;
+  --tgui--button_color: #FF6B8A !important;
   --tgui--button_text_color: #FFFFFF !important;
   --tgui--header_bg_color: #FFFFFF !important;
   --tgui--section_bg_color: #FFFFFF !important;
-  --tgui--section_header_text_color: #8E8E93 !important;
-  --tgui--subtitle_text_color: #8E8E93 !important;
+  --tgui--section_header_text_color: #6C6C70 !important;
+  --tgui--subtitle_text_color: #6C6C70 !important;
   --tgui--destructive_text_color: #FF3B30 !important;
   --tgui--section_separator_color: rgba(60, 60, 67, 0.12) !important;
 
@@ -80,10 +72,10 @@ body {
   display: flex;
   flex-direction: column;
   height: var(--viewport-height);
-  background-color: #F2F2F7 !important;
+  background-color: var(--bg) !important;
 }
 
-/* Scrollable page content */
+/* --- Page scroll area --- */
 .page {
   flex: 1;
   overflow-y: auto;
@@ -91,45 +83,249 @@ body {
   -webkit-overflow-scrolling: touch;
   padding-top: var(--safe-top);
   padding-bottom: calc(80px + var(--safe-bottom));
-  background-color: #F2F2F7 !important;
+  background-color: var(--bg) !important;
 }
 
-/* Large title at top of page */
+/* --- Page title — iOS Large Title --- */
 .page-title {
-  padding: 8px 16px 16px;
+  padding: 12px var(--page-padding) 20px;
 }
 
-.page-title h1,
-.page-title h2 {
-  color: var(--text) !important;
+.page-title h1 {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.4px;
 }
 
-.hint {
+.page-title .subtitle {
+  font-size: 15px;
   color: var(--text-secondary);
   margin-top: 4px;
 }
 
-/* Emoji icon in cell */
-.cell-emoji {
+/* --- Section — единый контейнер --- */
+.section {
+  margin-bottom: var(--card-gap);
+}
+
+.section-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 20px var(--page-padding) 8px;
+}
+
+.section-card {
+  background: var(--bg-card);
+  margin: 0 var(--page-padding);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+}
+
+/* --- Cell — iOS-строка --- */
+.cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: var(--cell-padding-v) var(--cell-padding-h);
+  background: var(--bg-card);
+  min-height: 48px;
+}
+
+/* Разделитель — iOS inset style */
+.cell + .cell {
+  position: relative;
+}
+
+.cell + .cell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 60px;
+  height: 0.5px;
+  background: var(--separator);
+}
+
+.cell-icon {
   font-size: 24px;
-  line-height: 1;
   width: 32px;
   text-align: center;
+  flex-shrink: 0;
 }
 
-/* Progress inside a cell */
-.cell-progress {
+.cell-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cell-title {
+  font-size: 17px;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.cell-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.cell-after {
+  font-size: 15px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.cell-chevron {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  margin-left: 4px;
+  font-size: 20px;
+  font-weight: 300;
+}
+
+/* --- Progress bar --- */
+.progress-bar {
   width: 100%;
-  padding-top: 4px;
+  height: 6px;
+  background: #E5E5EA;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
 }
 
-/* Calendar grid */
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-fill--accent {
+  background: var(--accent);
+}
+
+.progress-fill--green {
+  background: var(--accent-green);
+}
+
+/* --- Feature card (карта дня / мысль дня) --- */
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px;
+  border-radius: var(--card-radius);
+  margin: 0 var(--page-padding);
+  margin-bottom: var(--card-gap);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.feature-card:active {
+  transform: scale(0.98);
+}
+
+.feature-card__emoji {
+  font-size: 56px;
+  margin-bottom: 12px;
+}
+
+.feature-card__title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.feature-card__desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* --- CTA button --- */
+.btn-primary {
+  display: block;
+  width: calc(100% - var(--page-padding) * 2);
+  margin: var(--card-gap) auto 24px;
+  padding: 16px;
+  border-radius: var(--card-radius);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-primary:active {
+  opacity: 0.8;
+}
+
+/* --- Modes grid --- */
+.modes-grid {
+  display: flex;
+  gap: 10px;
+  padding: 0 var(--page-padding);
+  margin-bottom: var(--card-gap);
+}
+
+.mode-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 8px;
+  min-height: 48px;
+  background: var(--bg-card);
+  border-radius: var(--card-radius);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mode-item:active {
+  transform: scale(0.97);
+}
+
+.mode-item--active {
+  border-color: var(--accent);
+}
+
+.mode-item__icon {
+  font-size: 28px;
+}
+
+.mode-item__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mode-item__desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* --- Calendar --- */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
   text-align: center;
-  padding: 8px 16px 16px;
+  padding: 8px var(--cell-padding-h) 16px;
 }
 
 .calendar-header {
@@ -158,101 +354,51 @@ body {
   font-weight: 600;
 }
 
-/* Tarot card */
-.tarot-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 32px 16px;
-  border-radius: 12px;
-  margin: 0 16px;
-  background: var(--bg-card);
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.tarot-card:active {
-  transform: scale(0.98);
-}
-
-.tarot-card__emoji {
-  font-size: 56px;
-  margin-bottom: 12px;
-}
-
-.tarot-card--revealed {
-  cursor: default;
-}
-
-.tarot-card--revealed:active {
-  transform: none;
-}
-
-/* Modes grid */
-.modes-grid {
-  display: flex;
-  gap: 8px;
-  padding: 0 16px;
-}
-
-.mode-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 8px;
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.mode-item:active {
-  transform: scale(0.97);
-}
-
-.mode-item--active {
-  border-color: var(--accent);
-}
-
-.mode-item__icon {
-  font-size: 28px;
-}
-
-.mode-item__label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.mode-item__desc {
-  font-size: 11px;
-  color: var(--text-secondary);
-  text-align: center;
-  line-height: 1.3;
-}
-
-/* Profile header */
+/* --- Profile header --- */
 .profile-header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 16px 8px;
+  padding: 20px var(--page-padding) 12px;
   gap: 8px;
 }
 
-.profile-header h2 {
-  color: var(--text) !important;
+.profile-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF6B8A, #FF8FB1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
 }
 
-/* Subscription banner */
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.profile-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* --- Subscription banner --- */
 .sub-banner {
-  margin: 8px 16px 16px;
-  padding: 20px;
-  border-radius: 12px;
+  margin: var(--card-gap) var(--page-padding);
+  padding: 24px 20px;
+  border-radius: var(--card-radius);
   background: var(--accent);
   color: #fff;
   text-align: center;
@@ -274,19 +420,137 @@ body {
   background: rgba(255, 255, 255, 0.25);
   color: #fff;
   border: none;
-  border-radius: 10px;
-  padding: 12px 24px;
+  border-radius: var(--card-radius);
+  padding: 14px 24px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
+  font-family: inherit;
 }
 
 .sub-banner button:active {
   opacity: 0.8;
 }
 
-/* Animation */
+/* --- Placeholder (пустые состояния) --- */
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.placeholder__emoji {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.placeholder__text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* --- Tab bar --- */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--separator);
+  padding: 8px 0 max(20px, var(--safe-bottom));
+  z-index: 100;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 12px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.tab-item--active .tab-label {
+  color: var(--accent);
+}
+
+/* --- Goal steps (Мой путь) --- */
+.goal-steps {
+  padding: 4px 0;
+}
+
+.goal-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.goal-step__icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.goal-step__icon--done {
+  color: var(--accent-green);
+}
+
+.goal-step__icon--current {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.goal-step__icon--future {
+  color: var(--text-tertiary);
+}
+
+.goal-step__text {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.goal-step__text--done {
+  color: var(--text-secondary);
+}
+
+.goal-step__text--current {
+  font-weight: 600;
+}
+
+.goal-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 8px var(--cell-padding-h) 4px;
+}
+
+/* --- Animation --- */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }

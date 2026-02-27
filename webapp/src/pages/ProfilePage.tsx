@@ -1,6 +1,11 @@
-import { Section, Cell, Avatar, Title, Caption } from '@telegram-apps/telegram-ui';
 import { useUser } from '../hooks/useUser';
 import { updateStyle } from '../api';
+
+const MODES = [
+  { id: 'astrologer', icon: '🔮', label: 'Астролог' },
+  { id: 'coach', icon: '🧠', label: 'Коуч' },
+  { id: 'friend', icon: '👩', label: 'Подруга' },
+];
 
 const STYLE_NAMES: Record<number, string> = {
   1: '🌿 Мягкий',
@@ -12,6 +17,10 @@ export function ProfilePage() {
   const tg = window.Telegram?.WebApp;
   const tgUser = tg?.initDataUnsafe?.user;
   const { user, setUser } = useUser();
+
+  const name = tgUser?.first_name || user?.name || 'Гость';
+  const photoUrl = tgUser?.photo_url;
+  const currentMode = user?.mode || 'astrologer';
 
   const handleStyleChange = async () => {
     if (!user) return;
@@ -25,84 +34,117 @@ export function ProfilePage() {
     }
   };
 
-  const name = tgUser?.first_name || user?.name || 'Гость';
-  const photoUrl = tgUser?.photo_url;
+  const handleModeSelect = (modeId: string) => {
+    if (!user) return;
+    setUser({ ...user, mode: modeId });
+    tg?.HapticFeedback?.selectionChanged();
+  };
 
   return (
     <>
       {/* Профиль */}
       <div className="profile-header">
-        <Avatar
-          size={96}
-          src={photoUrl}
-          acronym={name[0]}
-        />
-        <Title level="2" weight="1">{name}</Title>
-        <Caption style={{ color: '#8E8E93' }}>
-          Сессий: {user?.sessions_count || 0} · {user?.is_premium ? 'Про' : 'Бесплатно'}
-        </Caption>
+        <div className="profile-avatar">
+          {photoUrl ? (
+            <img src={photoUrl} alt={name} />
+          ) : (
+            name[0]
+          )}
+        </div>
+        <div className="profile-name">{name}</div>
+        <div className="profile-meta">
+          Сессий: {user?.sessions_count || 0} · {user?.is_premium ? 'Про' : 'Базовый план'}
+        </div>
       </div>
 
-      {/* Подписка */}
+      {/* Подписка — только если не премиум */}
       {!user?.is_premium && (
         <div className="sub-banner">
-          <h3>Подписка</h3>
-          <p>Открой полный доступ ко всем режимам и функциям</p>
+          <h3>Полный доступ</h3>
+          <p>Все режимы общения, расклады, персональные прогнозы и безлимитные сессии</p>
           <button>Оформить подписку ⭐</button>
         </div>
       )}
 
-      {/* Стиль */}
-      <Section header="Наставник">
-        <Cell
-          before={<span className="cell-emoji">🎯</span>}
-          after={<Caption style={{ color: '#8E8E93' }}>{STYLE_NAMES[user?.coaching_style || 2]}</Caption>}
-          onClick={handleStyleChange}
-        >
-          Стиль коучинга
-        </Cell>
-      </Section>
+      {/* Наставник — режим */}
+      <div className="section">
+        <div className="section-header">Режим общения</div>
+        <div className="modes-grid">
+          {MODES.map((mode) => (
+            <div
+              key={mode.id}
+              className={`mode-item ${currentMode === mode.id ? 'mode-item--active' : ''}`}
+              onClick={() => handleModeSelect(mode.id)}
+            >
+              <span className="mode-item__icon">{mode.icon}</span>
+              <span className="mode-item__label">{mode.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Наставник — стиль */}
+      <div className="section">
+        <div className="section-header">Наставник</div>
+        <div className="section-card">
+          <div className="cell" onClick={handleStyleChange} style={{ cursor: 'pointer' }}>
+            <span className="cell-icon">🎯</span>
+            <div className="cell-body">
+              <div className="cell-title">Стиль коучинга</div>
+            </div>
+            <span className="cell-after">{STYLE_NAMES[user?.coaching_style || 2]}</span>
+          </div>
+        </div>
+      </div>
 
       {/* Настройки */}
-      <Section header="Настройки">
-        <Cell
-          before={<span className="cell-emoji">⏰</span>}
-          after={<Caption style={{ color: '#8E8E93' }}>08:00</Caption>}
-        >
-          Утреннее сообщение
-        </Cell>
-        <Cell
-          before={<span className="cell-emoji">🌙</span>}
-          after={<Caption style={{ color: '#8E8E93' }}>21:00</Caption>}
-        >
-          Вечерний чек-ин
-        </Cell>
-        <Cell
-          before={<span className="cell-emoji">🔔</span>}
-          after={<Caption style={{ color: '#8E8E93' }}>Включены</Caption>}
-        >
-          Напоминания
-        </Cell>
-        <Cell
-          before={<span className="cell-emoji">📍</span>}
-          after={<Caption style={{ color: '#8E8E93' }}>Авто</Caption>}
-        >
-          Часовой пояс
-        </Cell>
-      </Section>
+      <div className="section">
+        <div className="section-header">Настройки</div>
+        <div className="section-card">
+          <div className="cell">
+            <span className="cell-icon">⏰</span>
+            <div className="cell-body">
+              <div className="cell-title">Утреннее сообщение</div>
+            </div>
+            <span className="cell-after">08:00</span>
+          </div>
+          <div className="cell">
+            <span className="cell-icon">🌙</span>
+            <div className="cell-body">
+              <div className="cell-title">Вечерний чек-ин</div>
+            </div>
+            <span className="cell-after">21:00</span>
+          </div>
+          <div className="cell">
+            <span className="cell-icon">🔔</span>
+            <div className="cell-body">
+              <div className="cell-title">Напоминания</div>
+            </div>
+            <span className="cell-after">Включены</span>
+          </div>
+        </div>
+      </div>
 
-      {/* Прочее */}
-      <Section header="Ещё">
-        <Cell before={<span className="cell-emoji">📜</span>}>
-          История платежей
-        </Cell>
-        <Cell before={<span className="cell-emoji">✏️</span>}>
-          Редактировать данные
-        </Cell>
-        <Cell before={<span className="cell-emoji">❓</span>}>
-          Помощь
-        </Cell>
-      </Section>
+      {/* Ещё */}
+      <div className="section">
+        <div className="section-header">Ещё</div>
+        <div className="section-card">
+          <div className="cell">
+            <span className="cell-icon">📜</span>
+            <div className="cell-body">
+              <div className="cell-title">История платежей</div>
+            </div>
+            <span className="cell-chevron">›</span>
+          </div>
+          <div className="cell">
+            <span className="cell-icon">❓</span>
+            <div className="cell-body">
+              <div className="cell-title">Помощь</div>
+            </div>
+            <span className="cell-chevron">›</span>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

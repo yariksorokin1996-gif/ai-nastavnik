@@ -1,4 +1,22 @@
 :root {
+  /* --- Цвета --- */
+  --bg: #F2F2F7;
+  --bg-card: #FFFFFF;
+  --text: #000000;
+  --text-secondary: #6C6C70;
+  --text-tertiary: #8A8A8E;
+  --accent: #FF6B8A;
+  --accent-green: #34C759;
+  --separator: rgba(60, 60, 67, 0.12);
+
+  /* --- Отступы и скругления --- */
+  --page-padding: 20px;
+  --card-radius: 14px;
+  --card-gap: 12px;
+  --cell-padding-h: 16px;
+  --cell-padding-v: 14px;
+
+  /* --- Telegram safe areas --- */
   --safe-top: var(--tg-content-safe-area-inset-top, 0px);
   --safe-bottom: var(--tg-safe-area-inset-bottom, 0px);
   --viewport-height: var(--tg-viewport-stable-height, 100vh);

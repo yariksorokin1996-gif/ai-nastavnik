@@ -1,139 +1,164 @@
 import { useState, useEffect } from 'react';
-import { Section, Cell, Button, Text, Title, Caption, Progress, Placeholder } from '@telegram-apps/telegram-ui';
 import { fetchDaily, type DailyData } from '../api';
 import { useUser } from '../hooks/useUser';
 
-const MODES = [
-  { id: 'astrologer', icon: '🔮', label: 'Астролог', description: 'Расклады и прогнозы' },
-  { id: 'coach', icon: '🧠', label: 'Коуч', description: 'Разборы и задания' },
-  { id: 'friend', icon: '👩', label: 'Подруга', description: 'Поболтать, поддержка' },
-];
-
-const PHASE_LABELS: Record<string, string> = {
-  onboarding: 'Знакомство',
-  diagnosis: 'Диагностика',
-  goal: 'Постановка цели',
-  planning: 'Составление плана',
-  daily: 'Ежедневная работа',
-};
-
-const PHASE_PROGRESS: Record<string, number> = {
-  onboarding: 5,
-  diagnosis: 15,
-  goal: 30,
-  planning: 50,
-  daily: 70,
-};
-
 export function HomePage() {
   const { user } = useUser();
-  const [activeMode, setActiveMode] = useState('astrologer');
   const [daily, setDaily] = useState<DailyData | null>(null);
+  const [cardRevealed, setCardRevealed] = useState(false);
+  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
 
   useEffect(() => {
     fetchDaily().then(setDaily).catch(() => {});
   }, []);
 
-  const handleModeSelect = (modeId: string) => {
-    setActiveMode(modeId);
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged();
-  };
+  const firstName = user?.name || window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '';
+  const streak = daily?.streak || 0;
+  const sessionsCount = daily?.sessions_count || user?.sessions_count || 0;
+  const isNewUser = sessionsCount === 0;
+
+  const commitments = daily?.commitments || user?.commitments || [];
+  const currentTask = commitments[currentTaskIndex];
 
   const handleOpenChat = () => {
     window.Telegram?.WebApp?.close();
   };
 
-  const firstName = user?.name || window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'Привет';
-  const streak = daily?.streak || 0;
-  const sessionsCount = daily?.sessions_count || user?.sessions_count || 0;
-  const phase = user?.phase || 'onboarding';
+  const handleTaskDone = () => {
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+    if (currentTaskIndex < commitments.length - 1) {
+      setCurrentTaskIndex(currentTaskIndex + 1);
+    } else {
+      setCurrentTaskIndex(commitments.length); // all done
+    }
+  };
 
+  // ===== NEW USER =====
+  if (isNewUser) {
+    return (
+      <>
+        <div className="page-title">
+          <h1>{firstName ? `Привет, ${firstName}!` : 'Привет!'}</h1>
+          <div className="subtitle">Я — твой AI-наставник. Помогу разобраться в себе и достичь целей</div>
+        </div>
+
+        {/* Карта дня — первый интерактив */}
+        <div
+          className="feature-card"
+          onClick={() => !cardRevealed && setCardRevealed(true)}
+          style={cardRevealed ? { cursor: 'default' } : {}}
+        >
+          {!cardRevealed ? (
+            <>
+              <div className="feature-card__emoji">✦</div>
+              <div className="feature-card__title">Карта дня</div>
+              <div className="feature-card__desc">Нажми, чтобы открыть</div>
+            </>
+          ) : (
+            <>
+              <div className="feature-card__emoji">👑</div>
+              <div className="feature-card__title">Императрица</div>
+              <div className="feature-card__desc">
+                Императрица говорит о внутренней силе и решительности.
+                Сегодня ты способна на большее, чем думаешь.
+              </div>
+            </>
+          )}
+        </div>
+
+        <button className="btn-primary" onClick={handleOpenChat}>
+          Начать знакомство →
+        </button>
+      </>
+    );
+  }
+
+  // ===== ACTIVE USER =====
   return (
     <>
       <div className="page-title">
-        <Title level="1" weight="1">Привет, {firstName}!</Title>
-        <Caption style={{ color: '#8E8E93', marginTop: 4 }}>
-          День {sessionsCount || 1} · Серия: {streak || 1} 🔥
-        </Caption>
-      </div>
-
-      {/* Карта дня */}
-      <div style={{ padding: '0 16px 16px' }}>
-        <div className="tarot-card">
-          <div className="tarot-card__emoji">🃏</div>
-          <Text weight="2">Карта дня</Text>
-          <Caption style={{ color: '#8E8E93', marginTop: 4 }}>
-            {phase === 'onboarding'
-              ? 'Пройди онбординг для первой карты'
-              : 'Нажми, чтобы получить расклад'}
-          </Caption>
+        <h1>Привет, {firstName}!</h1>
+        <div className="subtitle">
+          {streak > 1 ? `Серия: ${streak} дней · Ты молодец!` : 'Рада тебя видеть!'}
         </div>
       </div>
 
-      {/* Задание дня */}
-      <Section header="Задание дня">
-        {daily?.commitments && daily.commitments.length > 0 ? (
-          daily.commitments.map((c, i) => (
-            <Cell
-              key={i}
-              before={<span className="cell-emoji">☐</span>}
-              subtitle={c.deadline ? `До: ${c.deadline}` : undefined}
-              multiline
-            >
-              {c.action}
-            </Cell>
-          ))
-        ) : (
-          <Cell before={<span className="cell-emoji">☐</span>} multiline>
-            Начни общение с наставником
-          </Cell>
-        )}
-      </Section>
-
-      {/* Режим общения */}
-      <Section header="Режим общения">
-        <div className="modes-grid" style={{ paddingTop: 8, paddingBottom: 16 }}>
-          {MODES.map((mode) => (
-            <div
-              key={mode.id}
-              className={`mode-item ${activeMode === mode.id ? 'mode-item--active' : ''}`}
-              onClick={() => handleModeSelect(mode.id)}
-            >
-              <span className="mode-item__icon">{mode.icon}</span>
-              <span className="mode-item__label">{mode.label}</span>
-              <span className="mode-item__desc">{mode.description}</span>
+      {/* Мысль дня */}
+      {daily?.recent_patterns && daily.recent_patterns.length > 0 && daily.recent_patterns[0].pattern_text ? (
+        <div className="section">
+          <div className="section-header">Мысль дня</div>
+          <div className="section-card">
+            <div className="cell">
+              <span className="cell-icon">✨</span>
+              <div className="cell-body">
+                <div className="cell-title" style={{ fontStyle: 'italic', fontSize: 15 }}>
+                  «{daily.recent_patterns[0].pattern_text}»
+                </div>
+              </div>
             </div>
-          ))}
+          </div>
         </div>
-      </Section>
+      ) : (
+        <div className="feature-card" onClick={() => !cardRevealed && setCardRevealed(true)} style={cardRevealed ? { cursor: 'default' } : {}}>
+          {!cardRevealed ? (
+            <>
+              <div className="feature-card__emoji">✦</div>
+              <div className="feature-card__title">Карта дня</div>
+              <div className="feature-card__desc">Нажми, чтобы открыть</div>
+            </>
+          ) : (
+            <>
+              <div className="feature-card__emoji">👑</div>
+              <div className="feature-card__title">Императрица</div>
+              <div className="feature-card__desc">
+                Императрица говорит о внутренней силе и решительности.
+                Сегодня ты способна на большее, чем думаешь.
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Мои цели */}
-      <Section header="Мои цели">
-        {user?.goal ? (
-          <Cell
-            before={<span className="cell-emoji">🎯</span>}
-            subtitle={PHASE_LABELS[phase] || phase}
-            after={<Caption style={{ color: '#007AFF' }}>{PHASE_PROGRESS[phase] || 0}%</Caption>}
-            multiline
-          >
-            {user.goal}
-            <div className="cell-progress">
-              <Progress value={PHASE_PROGRESS[phase] || 0} />
+      {/* Текущее задание — ОДНО */}
+      <div className="section">
+        <div className="section-header">Задание</div>
+        <div className="section-card">
+          {currentTask && currentTaskIndex < commitments.length ? (
+            <div className="cell" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span className="cell-icon">🎯</span>
+                <div className="cell-body">
+                  <div className="cell-title">{currentTask.action}</div>
+                  {currentTask.deadline && (
+                    <div className="cell-subtitle">До: {currentTask.deadline}</div>
+                  )}
+                </div>
+              </div>
+              <button
+                className="btn-primary"
+                style={{ margin: 0, width: '100%' }}
+                onClick={handleTaskDone}
+              >
+                Выполнено ✓
+              </button>
             </div>
-          </Cell>
-        ) : (
-          <Placeholder description={`Фаза: ${PHASE_LABELS[phase] || phase}\nЧерез пару дней предложу цели`}>
-            💬
-          </Placeholder>
-        )}
-      </Section>
-
-      {/* CTA */}
-      <div style={{ padding: '8px 16px 24px' }}>
-        <Button size="l" stretched onClick={handleOpenChat}>
-          Перейти в чат →
-        </Button>
+          ) : commitments.length > 0 ? (
+            <div className="placeholder">
+              <div className="placeholder__emoji">🎉</div>
+              <div className="placeholder__text">Все задания на сегодня выполнены!</div>
+            </div>
+          ) : (
+            <div className="placeholder">
+              <div className="placeholder__emoji">💬</div>
+              <div className="placeholder__text">Задание появится после разговора с наставником</div>
+            </div>
+          )}
+        </div>
       </div>
+
+      <button className="btn-primary" onClick={handleOpenChat}>
+        Написать наставнику →
+      </button>
     </>
   );
 }
