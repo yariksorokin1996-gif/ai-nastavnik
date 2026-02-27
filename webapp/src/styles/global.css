@@ -481,8 +481,8 @@ body {
   display: flex !important;
   justify-content: space-evenly !important;
   align-items: flex-start !important;
-  background: #F7F7F7 !important;
-  border-top: 1px solid rgba(0, 0, 0, 0.15) !important;
+  background: #FFFFFF !important;
+  border-top: 0.5px solid rgba(0, 0, 0, 0.2) !important;
   padding: 6px 0 max(20px, var(--safe-bottom)) !important;
   z-index: 1000 !important;
 }
