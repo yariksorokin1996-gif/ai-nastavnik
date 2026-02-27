@@ -476,18 +476,29 @@ body {
 .tab-bar {
   position: fixed !important;
   bottom: max(12px, var(--safe-bottom)) !important;
-  left: var(--page-padding) !important;
-  right: var(--page-padding) !important;
+  left: 32px !important;
+  right: 32px !important;
   display: flex !important;
   justify-content: space-evenly !important;
   align-items: center !important;
   background: rgba(255, 255, 255, 0.75) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
-  border-radius: 28px !important;
+  border-radius: 100px !important;
   padding: 10px 0 !important;
   z-index: 1000 !important;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10), 0 0 0 0.5px rgba(0, 0, 0, 0.08) !important;
+}
+
+.tab-bar::before {
+  content: '';
+  position: absolute;
+  left: -32px;
+  right: -32px;
+  bottom: 100%;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, var(--bg));
+  pointer-events: none;
 }
 
 .tab-item {
