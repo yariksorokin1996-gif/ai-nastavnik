@@ -8,7 +8,7 @@ import { useUser } from './hooks/useUser';
 
 type Tab = 'home' | 'progress' | 'profile';
 
-const INACTIVE = '#8A8A8E';
+const INACTIVE = '#6C6C70';
 const ACTIVE = '#FF6B8A';
 
 function App() {
