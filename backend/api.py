@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -214,5 +214,12 @@ if WEBAPP_DIST.is_dir():
         file_path = WEBAPP_DIST / full_path
         if file_path.is_file():
             return FileResponse(file_path)
-        # Иначе SPA fallback
-        return FileResponse(WEBAPP_DIST / "index.html")
+        # SPA fallback — index.html без кеша
+        return FileResponse(
+            WEBAPP_DIST / "index.html",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
