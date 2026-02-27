@@ -472,20 +472,22 @@ body {
   line-height: 1.4;
 }
 
-/* --- Tab bar (Telegram iOS style — floating card) --- */
+/* --- Tab bar (Telegram iOS style — frosted glass floating pill) --- */
 .tab-bar {
   position: fixed !important;
   bottom: max(12px, var(--safe-bottom)) !important;
-  left: 12px !important;
-  right: 12px !important;
+  left: var(--page-padding) !important;
+  right: var(--page-padding) !important;
   display: flex !important;
   justify-content: space-evenly !important;
   align-items: center !important;
-  background: #FFFFFF !important;
-  border-radius: 20px !important;
-  padding: 8px 0 !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  border-radius: 28px !important;
+  padding: 10px 0 !important;
   z-index: 1000 !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10), 0 0 0 0.5px rgba(0, 0, 0, 0.08) !important;
 }
 
 .tab-item {
@@ -493,15 +495,20 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  padding: 2px 16px;
-  min-width: 64px;
+  gap: 2px;
+  padding: 6px 20px;
+  min-width: 72px;
   background: none;
   border: none;
+  border-radius: 16px;
   cursor: pointer;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.1s ease;
+  transition: all 0.15s ease;
+}
+
+.tab-item--active {
+  background: rgba(255, 107, 138, 0.12);
 }
 
 .tab-item:active {
@@ -511,7 +518,7 @@ body {
 .tab-label {
   font-size: 10px;
   font-weight: 500;
-  color: #999999;
+  color: #8A8A8E;
   letter-spacing: 0.01em;
 }
 
