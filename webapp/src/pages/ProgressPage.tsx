@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '../hooks/useUser';
 import { fetchDaily, fetchPatterns, type DailyData, type PatternData } from '../api';
+import type { UserState } from '../hooks/useUser';
 
 // Goal milestones from API (future: will come from backend)
 // For now, derive from phase
@@ -27,8 +27,12 @@ const PHASE_MILESTONES: Record<string, { steps: string[]; current: number }> = {
   },
 };
 
-export function ProgressPage() {
-  const { user } = useUser();
+interface ProgressPageProps {
+  userState: UserState;
+}
+
+export function ProgressPage({ userState }: ProgressPageProps) {
+  const { user, loading, error, retry } = userState;
   const [daily, setDaily] = useState<DailyData | null>(null);
   const [patterns, setPatterns] = useState<PatternData[]>([]);
 
@@ -36,6 +40,29 @@ export function ProgressPage() {
     fetchDaily().then(setDaily).catch(() => {});
     fetchPatterns().then(setPatterns).catch(() => {});
   }, []);
+
+  // Loading
+  if (loading) {
+    return (
+      <div className="skeleton-page">
+        <div className="skeleton skeleton-title" />
+        <div className="skeleton skeleton-card" style={{ marginTop: 20, height: 200 }} />
+        <div className="skeleton skeleton-card" style={{ height: 180 }} />
+        <div className="skeleton skeleton-card" style={{ height: 80 }} />
+      </div>
+    );
+  }
+
+  // Error
+  if (error) {
+    return (
+      <div className="error-state">
+        <div className="error-state__emoji">😔</div>
+        <div className="error-state__text">Не удалось загрузить данные</div>
+        <button className="error-state__btn" onClick={retry}>Повторить</button>
+      </div>
+    );
+  }
 
   const phase = user?.phase || 'onboarding';
   const sessionsCount = daily?.sessions_count || user?.sessions_count || 0;
@@ -185,6 +212,11 @@ export function ProgressPage() {
           )}
         </div>
       </div>
+
+      <button className="btn-primary" onClick={() => window.Telegram?.WebApp?.close()}>
+        Написать наставнику →
+      </button>
+      <div className="btn-hint">Откроется чат с наставником</div>
     </>
   );
 }

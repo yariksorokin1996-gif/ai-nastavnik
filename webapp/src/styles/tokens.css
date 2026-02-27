@@ -11,7 +11,7 @@
 
   /* --- Отступы и скругления --- */
   --page-padding: 20px;
-  --card-radius: 14px;
+  --card-radius: 10px;
   --card-gap: 12px;
   --cell-padding-h: 16px;
   --cell-padding-v: 14px;

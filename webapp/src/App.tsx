@@ -4,6 +4,7 @@ import { Sparkles, TrendingUp, User } from 'lucide-react';
 import { HomePage } from './pages/HomePage';
 import { ProgressPage } from './pages/ProgressPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { useUser } from './hooks/useUser';
 
 type Tab = 'home' | 'progress' | 'profile';
 
@@ -12,6 +13,8 @@ const ACTIVE = '#FF6B8A';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
+  const [animating, setAnimating] = useState(false);
+  const userState = useUser();
 
   useEffect(() => {
     // Force light theme via JS (highest priority)
@@ -43,22 +46,30 @@ function App() {
   }, []);
 
   const handleTab = (tab: Tab) => {
+    if (tab === activeTab) return;
+    setAnimating(true);
     setActiveTab(tab);
     window.Telegram?.WebApp?.HapticFeedback?.selectionChanged();
-  };
-
-  const renderPage = () => {
-    switch (activeTab) {
-      case 'home': return <HomePage />;
-      case 'progress': return <ProgressPage />;
-      case 'profile': return <ProfilePage />;
-    }
+    setTimeout(() => setAnimating(false), 250);
   };
 
   return (
     <AppRoot appearance="light">
-      <div className="page">
-        {renderPage()}
+      {/* All pages rendered, inactive hidden via display:none — no re-mount, no re-fetch */}
+      <div className="page" style={{ display: activeTab === 'home' ? undefined : 'none' }}>
+        <div className={animating && activeTab === 'home' ? 'animate-in' : ''}>
+          <HomePage userState={userState} />
+        </div>
+      </div>
+      <div className="page" style={{ display: activeTab === 'progress' ? undefined : 'none' }}>
+        <div className={animating && activeTab === 'progress' ? 'animate-in' : ''}>
+          <ProgressPage userState={userState} />
+        </div>
+      </div>
+      <div className="page" style={{ display: activeTab === 'profile' ? undefined : 'none' }}>
+        <div className={animating && activeTab === 'profile' ? 'animate-in' : ''}>
+          <ProfilePage userState={userState} />
+        </div>
       </div>
 
       <div className="tab-bar">
@@ -66,21 +77,33 @@ function App() {
           className={`tab-item ${activeTab === 'home' ? 'tab-item--active' : ''}`}
           onClick={() => handleTab('home')}
         >
-          <Sparkles size={24} color={activeTab === 'home' ? ACTIVE : INACTIVE} />
+          <Sparkles
+            size={24}
+            color={activeTab === 'home' ? ACTIVE : INACTIVE}
+            strokeWidth={activeTab === 'home' ? 2.5 : 1.5}
+          />
           <span className="tab-label">Сегодня</span>
         </button>
         <button
           className={`tab-item ${activeTab === 'progress' ? 'tab-item--active' : ''}`}
           onClick={() => handleTab('progress')}
         >
-          <TrendingUp size={24} color={activeTab === 'progress' ? ACTIVE : INACTIVE} />
+          <TrendingUp
+            size={24}
+            color={activeTab === 'progress' ? ACTIVE : INACTIVE}
+            strokeWidth={activeTab === 'progress' ? 2.5 : 1.5}
+          />
           <span className="tab-label">Мой путь</span>
         </button>
         <button
           className={`tab-item ${activeTab === 'profile' ? 'tab-item--active' : ''}`}
           onClick={() => handleTab('profile')}
         >
-          <User size={24} color={activeTab === 'profile' ? ACTIVE : INACTIVE} />
+          <User
+            size={24}
+            color={activeTab === 'profile' ? ACTIVE : INACTIVE}
+            strokeWidth={activeTab === 'profile' ? 2.5 : 1.5}
+          />
           <span className="tab-label">Профиль</span>
         </button>
       </div>

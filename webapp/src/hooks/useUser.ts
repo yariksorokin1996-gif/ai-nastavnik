@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchUser, type UserData } from '../api';
 
 export function useUser() {
@@ -6,12 +6,20 @@ export function useUser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     fetchUser()
       .then(setUser)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  return { user, loading, error, setUser };
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { user, loading, error, setUser, retry: load };
 }
+
+export type UserState = ReturnType<typeof useUser>;

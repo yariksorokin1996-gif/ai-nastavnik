@@ -1,10 +1,10 @@
-import { useUser } from '../hooks/useUser';
 import { updateStyle } from '../api';
+import type { UserState } from '../hooks/useUser';
 
 const MODES = [
-  { id: 'astrologer', icon: '🔮', label: 'Астролог' },
   { id: 'coach', icon: '🧠', label: 'Коуч' },
   { id: 'friend', icon: '👩', label: 'Подруга' },
+  { id: 'astrologer', icon: '🔮', label: 'Астролог' },
 ];
 
 const STYLE_NAMES: Record<number, string> = {
@@ -13,14 +13,42 @@ const STYLE_NAMES: Record<number, string> = {
   3: '🔥 Жёсткий',
 };
 
-export function ProfilePage() {
+interface ProfilePageProps {
+  userState: UserState;
+}
+
+export function ProfilePage({ userState }: ProfilePageProps) {
+  const { user, loading, error, retry, setUser } = userState;
   const tg = window.Telegram?.WebApp;
   const tgUser = tg?.initDataUnsafe?.user;
-  const { user, setUser } = useUser();
+
+  // Loading
+  if (loading) {
+    return (
+      <div className="skeleton-page">
+        <div className="skeleton" style={{ width: 96, height: 96, borderRadius: '50%', margin: '20px auto 8px' }} />
+        <div className="skeleton skeleton-title" style={{ width: '40%', margin: '0 auto 8px' }} />
+        <div className="skeleton skeleton-subtitle" style={{ width: '50%', margin: '0 auto' }} />
+        <div className="skeleton skeleton-card" style={{ marginTop: 20 }} />
+        <div className="skeleton skeleton-card" />
+      </div>
+    );
+  }
+
+  // Error
+  if (error) {
+    return (
+      <div className="error-state">
+        <div className="error-state__emoji">😔</div>
+        <div className="error-state__text">Не удалось загрузить данные</div>
+        <button className="error-state__btn" onClick={retry}>Повторить</button>
+      </div>
+    );
+  }
 
   const name = tgUser?.first_name || user?.name || 'Гость';
   const photoUrl = tgUser?.photo_url;
-  const currentMode = user?.mode || 'astrologer';
+  const currentMode = user?.mode || 'coach';
 
   const handleStyleChange = async () => {
     if (!user) return;
@@ -38,6 +66,18 @@ export function ProfilePage() {
     if (!user) return;
     setUser({ ...user, mode: modeId });
     tg?.HapticFeedback?.selectionChanged();
+  };
+
+  const handleComingSoon = () => {
+    if (tg && typeof (tg as any).showPopup === 'function') {
+      (tg as any).showPopup({
+        title: 'Скоро!',
+        message: 'Эта функция появится в ближайшее время',
+        buttons: [{ type: 'ok' }],
+      });
+    } else {
+      alert('Эта функция появится в ближайшее время');
+    }
   };
 
   return (
@@ -62,7 +102,7 @@ export function ProfilePage() {
         <div className="sub-banner">
           <h3>Полный доступ</h3>
           <p>Все режимы общения, расклады, персональные прогнозы и безлимитные сессии</p>
-          <button>Оформить подписку ⭐</button>
+          <button onClick={handleComingSoon}>Оформить подписку ⭐</button>
         </div>
       )}
 
@@ -81,13 +121,23 @@ export function ProfilePage() {
             </div>
           ))}
         </div>
+        <div style={{
+          fontSize: 12,
+          color: 'var(--text-tertiary)',
+          textAlign: 'center',
+          marginTop: -4,
+          marginBottom: 12,
+          padding: '0 var(--page-padding)',
+        }}>
+          Сохранение выбора — скоро
+        </div>
       </div>
 
       {/* Наставник — стиль */}
       <div className="section">
         <div className="section-header">Наставник</div>
         <div className="section-card">
-          <div className="cell" onClick={handleStyleChange} style={{ cursor: 'pointer' }}>
+          <div className="cell cell--tappable" onClick={handleStyleChange}>
             <span className="cell-icon">🎯</span>
             <div className="cell-body">
               <div className="cell-title">Стиль коучинга</div>
@@ -106,21 +156,21 @@ export function ProfilePage() {
             <div className="cell-body">
               <div className="cell-title">Утреннее сообщение</div>
             </div>
-            <span className="cell-after">08:00</span>
+            <span className="badge-soon">Скоро</span>
           </div>
           <div className="cell">
             <span className="cell-icon">🌙</span>
             <div className="cell-body">
               <div className="cell-title">Вечерний чек-ин</div>
             </div>
-            <span className="cell-after">21:00</span>
+            <span className="badge-soon">Скоро</span>
           </div>
           <div className="cell">
             <span className="cell-icon">🔔</span>
             <div className="cell-body">
               <div className="cell-title">Напоминания</div>
             </div>
-            <span className="cell-after">Включены</span>
+            <span className="badge-soon">Скоро</span>
           </div>
         </div>
       </div>
@@ -134,14 +184,14 @@ export function ProfilePage() {
             <div className="cell-body">
               <div className="cell-title">История платежей</div>
             </div>
-            <span className="cell-chevron">›</span>
+            <span className="badge-soon">Скоро</span>
           </div>
           <div className="cell">
             <span className="cell-icon">❓</span>
             <div className="cell-body">
               <div className="cell-title">Помощь</div>
             </div>
-            <span className="cell-chevron">›</span>
+            <span className="badge-soon">Скоро</span>
           </div>
         </div>
       </div>

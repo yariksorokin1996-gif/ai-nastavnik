@@ -453,19 +453,17 @@ body {
   line-height: 1.4;
 }
 
-/* --- Tab bar --- */
+/* --- Tab bar (Telegram iOS style) --- */
 .tab-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   display: flex;
-  justify-content: space-around;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 0.5px solid var(--separator);
-  padding: 8px 0 max(20px, var(--safe-bottom));
+  justify-content: space-evenly;
+  background: #FFFFFF;
+  border-top: 0.5px solid rgba(0, 0, 0, 0.12);
+  padding: 6px 0 max(20px, var(--safe-bottom));
   z-index: 100;
 }
 
@@ -482,6 +480,11 @@ body {
   cursor: pointer;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.1s ease;
+}
+
+.tab-item:active {
+  opacity: 0.6;
 }
 
 .tab-label {
@@ -492,6 +495,110 @@ body {
 
 .tab-item--active .tab-label {
   color: var(--accent);
+}
+
+/* --- Tappable cell — iOS press highlight --- */
+.cell--tappable {
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cell--tappable:active {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* --- "Coming soon" badge --- */
+.badge-soon {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+/* --- CTA hint text --- */
+.btn-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: -16px;
+  margin-bottom: 24px;
+}
+
+/* --- Skeleton loading --- */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #E5E5EA 25%, #F2F2F7 50%, #E5E5EA 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+.skeleton-page {
+  padding: 12px var(--page-padding) 20px;
+}
+
+.skeleton-title {
+  height: 34px;
+  width: 60%;
+  margin-bottom: 8px;
+}
+
+.skeleton-subtitle {
+  height: 16px;
+  width: 80%;
+  margin-bottom: 20px;
+}
+
+.skeleton-card {
+  height: 120px;
+  margin-bottom: var(--card-gap);
+  border-radius: var(--card-radius);
+}
+
+/* --- Error state --- */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px var(--page-padding);
+  text-align: center;
+  gap: 12px;
+}
+
+.error-state__emoji {
+  font-size: 48px;
+}
+
+.error-state__text {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.error-state__btn {
+  margin-top: 8px;
+  padding: 10px 24px;
+  border-radius: var(--card-radius);
+  border: 1px solid var(--separator);
+  background: var(--bg-card);
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.error-state__btn:active {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 /* --- Goal steps (Мой путь) --- */

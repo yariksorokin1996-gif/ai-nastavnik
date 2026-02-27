@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { fetchDaily, type DailyData } from '../api';
-import { useUser } from '../hooks/useUser';
+import type { UserState } from '../hooks/useUser';
 
-export function HomePage() {
-  const { user } = useUser();
+interface HomePageProps {
+  userState: UserState;
+}
+
+export function HomePage({ userState }: HomePageProps) {
+  const { user, loading, error, retry } = userState;
   const [daily, setDaily] = useState<DailyData | null>(null);
   const [cardRevealed, setCardRevealed] = useState(false);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
@@ -11,6 +15,29 @@ export function HomePage() {
   useEffect(() => {
     fetchDaily().then(setDaily).catch(() => {});
   }, []);
+
+  // Loading
+  if (loading) {
+    return (
+      <div className="skeleton-page">
+        <div className="skeleton skeleton-title" />
+        <div className="skeleton skeleton-subtitle" />
+        <div className="skeleton skeleton-card" style={{ marginTop: 20 }} />
+        <div className="skeleton skeleton-card" />
+      </div>
+    );
+  }
+
+  // Error
+  if (error) {
+    return (
+      <div className="error-state">
+        <div className="error-state__emoji">😔</div>
+        <div className="error-state__text">Не удалось загрузить данные</div>
+        <button className="error-state__btn" onClick={retry}>Повторить</button>
+      </div>
+    );
+  }
 
   const firstName = user?.name || window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '';
   const streak = daily?.streak || 0;
@@ -69,6 +96,7 @@ export function HomePage() {
         <button className="btn-primary" onClick={handleOpenChat}>
           Начать знакомство →
         </button>
+        <div className="btn-hint">Откроется чат с наставником</div>
       </>
     );
   }
@@ -159,6 +187,7 @@ export function HomePage() {
       <button className="btn-primary" onClick={handleOpenChat}>
         Написать наставнику →
       </button>
+      <div className="btn-hint">Откроется чат с наставником</div>
     </>
   );
 }
