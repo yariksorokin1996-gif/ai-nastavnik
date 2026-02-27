@@ -10,10 +10,24 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html, body {
   height: 100%;
   width: 100%;
   overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* AppRoot (telegram-ui) adds wrapper div — must inherit flex layout */
+#root > div {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0;
 }
 
 /* ===== FORCE LIGHT THEME — override Telegram dark mode ===== */
@@ -75,15 +89,20 @@ body {
   background-color: var(--bg) !important;
 }
 
-/* --- Page scroll area --- */
+/* --- Page scroll area (position-based — immune to AppRoot layout) --- */
 .page {
-  flex: 1;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   padding-top: var(--safe-top);
-  padding-bottom: calc(80px + var(--safe-bottom));
+  padding-bottom: calc(72px + var(--safe-bottom));
   background-color: var(--bg) !important;
+  z-index: 1;
 }
 
 /* --- Page title — iOS Large Title --- */
@@ -455,17 +474,17 @@ body {
 
 /* --- Tab bar (Telegram iOS style) --- */
 .tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-evenly;
-  align-items: flex-start;
-  background: #F7F7F7;
-  border-top: 0.33px solid rgba(0, 0, 0, 0.3);
-  padding: 5px 0 max(20px, var(--safe-bottom));
-  z-index: 100;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  display: flex !important;
+  justify-content: space-evenly !important;
+  align-items: flex-start !important;
+  background: #F7F7F7 !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.15) !important;
+  padding: 6px 0 max(20px, var(--safe-bottom)) !important;
+  z-index: 1000 !important;
 }
 
 .tab-item {
