@@ -80,7 +80,30 @@
       "step": 5,
       "name": "Схема хранения данных (БД)",
       "output": "bot/memory/database.py",
-      "done": false
+      "done": true,
+      "completed_at": "2026-03-03",
+      "tasks": [
+        {
+          "id": "5.1",
+          "description": "Полная перезапись database.py: 17 таблиц + init_db + CRUD",
+          "agent": "coder-backend",
+          "files": ["bot/memory/database.py"],
+          "contract": "Перезаписать bot/memory/database.py. 17 таблиц (users, messages, processed_messages, semantic_profiles, profile_versions, episodes, procedural_memory, pending_facts, emotion_log, patterns, phase_transitions, goals, goal_steps, daily_messages, session_feedback, analytics_weekly, webapp_events). SQL точно из docs/plan.md строки 730-920 + 3 дополнительных (processed_messages, pending_facts, emotion_log из docs/04_dialog_engine.md). users: добавить last_full_update_at TEXT + last_automated_msg_at TEXT. PRAGMA journal_mode=WAL + foreign_keys=ON. DROP TABLE IF EXISTS checkins. asynccontextmanager get_db(). init_db(). CRUD async для каждой таблицы. _parse_json() хелпер. logging не print. from shared.config import DB_PATH.",
+          "depends_on": [],
+          "done": true,
+          "completed_at": "2026-03-03"
+        },
+        {
+          "id": "5.2",
+          "description": "Тесты для database.py",
+          "agent": "tester",
+          "files": ["tests/unit/test_database.py"],
+          "contract": "41 pytest-тест: init_db (17 таблиц, WAL, FK), CRUD users/messages/profiles/episodes/patterns/goals/feedback/webapp_events, idempotency, retention",
+          "depends_on": ["5.1"],
+          "done": true,
+          "completed_at": "2026-03-03"
+        }
+      ]
     },
     {
       "step": 6,

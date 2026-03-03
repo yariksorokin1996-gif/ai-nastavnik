@@ -43,9 +43,15 @@
 3. pytest tests/ -x --tb=line -q (если есть тесты)
 4. Взять задачу из tasks.json → current
 
+## СТОП-сигнал: код
+Перед ЛЮБЫМ Write/Edit .py/.ts/.tsx/.css файла:
+→ Есть субагенты? → ДА → ДЕЛЕГИРУЙ, не пиши сам.
+→ Лид пишет только: docs, specs, STATE.md, tasks.json, CLAUDE.md.
+Нарушение = ошибка протокола → запись в agent-memory/lessons.md.
+
 ## Рабочий цикл
-- Шаги 1-4 (документация): Lead пишет напрямую
-- Шаги 5+ (код): контракт → tasks.json → субагент → ревью → tester → pytest → commit
+- Документация (docs/, specs/): Lead пишет напрямую
+- Код (.py/.ts/.tsx/.css): контракт → tasks.json → субагент → ревью → tester → pytest → commit
 - Подробный протокол: docs/agplan.md секция 4.2
 
 ## Завершение сессии
