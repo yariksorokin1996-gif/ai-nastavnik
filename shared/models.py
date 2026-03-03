@@ -133,9 +133,10 @@ class PauseContext(BaseModel):
 class SessionFeedback(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     telegram_id: int
-    episode_id: int
+    episode_id: Optional[int] = None
+    messages_in_session: int = 0
     feeling_after: Optional[int] = None
-    tried_in_practice: Optional[bool] = None
+    tried_in_practice: Optional[int] = None
 
 
 class WebappEvent(BaseModel):

@@ -67,6 +67,7 @@ async def call_claude(
             logger.error('call_claude error: %s', str(e))
             if attempt >= max_attempts:
                 return FALLBACK_RESPONSE
+            await asyncio.sleep(1)
 
 
 async def call_gpt(

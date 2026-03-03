@@ -279,3 +279,89 @@ async def test_call_gpt_auth_error(mock_client):
         )
     # Только 1 попытка — auth error не ретраится
     assert mock_client.chat.completions.create.await_count == 1
+
+
+# ===========================================================================
+# call_claude — max_tokens пробрасывается
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+@patch("shared.llm_client._claude_client")
+async def test_call_claude_max_tokens(mock_client):
+    """max_tokens пробрасывается в messages.create."""
+    mock_client.messages.create = AsyncMock(
+        return_value=make_claude_response("OK")
+    )
+    await call_claude(
+        messages=[{"role": "user", "content": "Привет"}],
+        system="Системный",
+        max_tokens=2048,
+    )
+    call_kwargs = mock_client.messages.create.call_args
+    assert call_kwargs.kwargs.get("max_tokens") == 2048
+
+
+# ===========================================================================
+# call_gpt — max_tokens пробрасывается
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+@patch("shared.llm_client._gpt_client")
+async def test_call_gpt_max_tokens(mock_client):
+    """max_tokens пробрасывается в completions.create."""
+    mock_client.chat.completions.create = AsyncMock(
+        return_value=make_gpt_response('{"a": 1}')
+    )
+    await call_gpt(
+        messages=[{"role": "user", "content": "Тест"}],
+        max_tokens=300,
+    )
+    call_kwargs = mock_client.chat.completions.create.call_args
+    assert call_kwargs.kwargs.get("max_tokens") == 300
+
+
+# ===========================================================================
+# call_claude — backoff between retries
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+@patch("shared.llm_client.asyncio.sleep", new_callable=AsyncMock)
+@patch("shared.llm_client._claude_client")
+async def test_call_claude_retry_backoff(mock_client, mock_sleep):
+    """При retry в call_claude есть пауза asyncio.sleep(1)."""
+    mock_client.messages.create = AsyncMock(
+        side_effect=[
+            anthropic.APIError(message="err", request=MagicMock(), body=None),
+            make_claude_response("После retry"),
+        ]
+    )
+    result = await call_claude(
+        messages=[{"role": "user", "content": "Привет"}],
+        system="Ты Ева",
+    )
+    assert result == "После retry"
+    mock_sleep.assert_awaited_once_with(1)
+
+
+# ===========================================================================
+# call_gpt — без system message
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+@patch("shared.llm_client._gpt_client")
+async def test_call_gpt_no_system(mock_client):
+    """Без system — сообщения передаются as-is, без system message."""
+    mock_client.chat.completions.create = AsyncMock(
+        return_value=make_gpt_response("ok")
+    )
+    await call_gpt(
+        messages=[{"role": "user", "content": "Вопрос"}],
+    )
+    call_kwargs = mock_client.chat.completions.create.call_args
+    sent_messages = call_kwargs.kwargs.get("messages")
+    assert len(sent_messages) == 1
+    assert sent_messages[0] == {"role": "user", "content": "Вопрос"}

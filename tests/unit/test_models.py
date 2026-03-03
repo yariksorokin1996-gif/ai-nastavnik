@@ -267,9 +267,10 @@ def test_daily_message():
 
 def test_session_feedback():
     """SessionFeedback с дефолтами."""
-    fb = SessionFeedback(telegram_id=123, episode_id=1)
+    fb = SessionFeedback(telegram_id=123)
     assert fb.telegram_id == 123
-    assert fb.episode_id == 1
+    assert fb.episode_id is None
+    assert fb.messages_in_session == 0
     assert fb.feeling_after is None
     assert fb.tried_in_practice is None
 

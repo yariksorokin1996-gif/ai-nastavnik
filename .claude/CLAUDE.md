@@ -29,7 +29,15 @@
 - coder-backend: Python (Sonnet, acceptEdits, maxTurns 25)
 - coder-frontend: React/TS (Sonnet, acceptEdits, maxTurns 25)
 - tester: pytest (Sonnet, acceptEdits, maxTurns 25)
+- critic: ревьюер (Sonnet, bypassPermissions, maxTurns 15, read-only)
 - Исследование: встроенный Explore
+
+## Критик (critic)
+- CRITIC-1 (план): запускать ПЕРЕД делегацией кода — проверяет контракт + docs
+- CRITIC-2 (результат): запускать ПОСЛЕ кода + тестов — проверяет код + тесты
+- Не запускать: правка < 10 строк, hotfix
+- Вердикт: PASS / FIX NEEDED / REWRITE + приоритеты P0/P1/P2
+- P0 → FIX обязателен, P1 → FIX если быстро, P2 → можно пропустить
 
 ## Источники правды
 - tasks.json = задачи и контракты (побеждает при конфликте с STATE.md)
@@ -51,7 +59,7 @@
 
 ## Рабочий цикл
 - Документация (docs/, specs/): Lead пишет напрямую
-- Код (.py/.ts/.tsx/.css): контракт → tasks.json → субагент → ревью → tester → pytest → commit
+- Код (.py/.ts/.tsx/.css): контракт → CRITIC-1 → субагент → tester → CRITIC-2 → pytest → commit
 - Подробный протокол: docs/agplan.md секция 4.2
 
 ## Завершение сессии
