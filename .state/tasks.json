@@ -13,7 +13,8 @@
       "step": 2,
       "name": "Описать движок диалога",
       "output": "docs/04_dialog_engine.md",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-03",
       "tasks": [
         {
           "id": "2.1",
@@ -22,7 +23,8 @@
           "files": ["docs/04_dialog_engine.md"],
           "contract": "Секция А: 14 шагов от получения сообщения до ответа + idempotency + мьютекс",
           "depends_on": [],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         },
         {
           "id": "2.2",
@@ -31,7 +33,8 @@
           "files": ["docs/04_dialog_engine.md"],
           "contract": "Секции Б-Е: таблица обрезки (8 строк), мини-обновление (regex), полное обновление (APScheduler), кризис (3 уровня)",
           "depends_on": ["2.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         }
       ]
     },
@@ -39,7 +42,8 @@
       "step": 3,
       "name": "Написать 20 тестовых сценариев",
       "output": "docs/05_test_scenarios.md",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-03",
       "tasks": [
         {
           "id": "3.1",
@@ -48,7 +52,8 @@
           "files": ["docs/05_test_scenarios.md"],
           "contract": "20 сценариев: 4 знакомство, 3 зеркало, 3 кризис, 3 возвращение, 3 цели, 2 память, 2 edge-case. Формат: категория/фаза/контекст → сообщение → ожидание → антипаттерн. Рубрика 1-5.",
           "depends_on": [],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         }
       ]
     },
@@ -56,7 +61,8 @@
       "step": 4,
       "name": "Нарисовать экраны приложения",
       "output": "docs/06_webapp_mockups.md",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-03",
       "tasks": [
         {
           "id": "4.1",
@@ -65,7 +71,8 @@
           "files": ["docs/06_webapp_mockups.md"],
           "contract": "5 экранов: Сегодня (до целей), Сегодня (с целями), Мой путь, Профиль, Навигация. Обе темы. Действие при нажатии для каждого элемента.",
           "depends_on": [],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         }
       ]
     },
