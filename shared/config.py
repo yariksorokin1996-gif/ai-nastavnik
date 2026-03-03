@@ -1,22 +1,33 @@
+"""Конфигурация проекта."""
+from __future__ import annotations
+
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
-MORNING_CHECKIN_HOUR = int(os.getenv("MORNING_CHECKIN_HOUR", "8"))
-MORNING_CHECKIN_MINUTE = int(os.getenv("MORNING_CHECKIN_MINUTE", "0"))
-EVENING_CHECKIN_HOUR = int(os.getenv("EVENING_CHECKIN_HOUR", "21"))
-EVENING_CHECKIN_MINUTE = int(os.getenv("EVENING_CHECKIN_MINUTE", "0"))
+CLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-sonnet-4-5-20250514')
+GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o-mini')
 
-FREE_SESSIONS_LIMIT = int(os.getenv("FREE_SESSIONS_LIMIT", "5"))
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'nastavnik.db')
+WEBAPP_URL = os.getenv('WEBAPP_URL', '')
 
-CLAUDE_MODEL_MAIN = os.getenv("CLAUDE_MODEL_MAIN", "claude-sonnet-4-5")
-CLAUDE_MODEL_FAST = os.getenv("CLAUDE_MODEL_FAST", "claude-haiku-4-5-20251001")
+OWNER_TELEGRAM_ID = int(os.getenv('OWNER_TELEGRAM_ID', '0'))
+TOKEN_BUDGET_SOFT = 3800
+RATE_LIMIT_PER_MINUTE = 60
+CLAUDE_TIMEOUT = 30
+GPT_TIMEOUT = 15
+FALLBACK_RESPONSE = 'Мм, мне нужно немного подумать. Напиши ещё раз через минутку?'
+FULL_UPDATE_PAUSE_MINUTES = 30
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "nastavnik.db")
-
-WEBAPP_URL = os.getenv("WEBAPP_URL", "")
+ALERT_THRESHOLDS = {
+    'consecutive_empty_context': 3,
+    'consecutive_errors': 3,
+    'latency_critical_ms': 25000,
+    'crisis_level_3': 1,
+}

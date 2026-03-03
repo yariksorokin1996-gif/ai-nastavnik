@@ -177,43 +177,44 @@
       "step": 8,
       "name": "Фундамент: LLM-обёртка + Pydantic-модели + Config",
       "output": "shared/llm_client.py, shared/models.py, shared/config.py",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-03",
       "tasks": [
         {
           "id": "8.1",
           "description": "shared/llm_client.py — LLM-обёртка (Claude + GPT)",
           "agent": "coder-backend",
           "files": ["shared/llm_client.py"],
-          "contract": "СОЗДАТЬ shared/llm_client.py. 2 функции + 1 исключение:\n\nasync def call_claude(messages: list[dict], system: str, max_tokens: int = 1024, timeout: int = 30) -> str\n  — Claude Sonnet 4.5 для диалога. Prompt caching: system с cache_control. Retry: 1. Fallback: 'Мм, мне нужно немного подумать...'\n  — Пример: response = await call_claude(messages=[{'role':'user','content':'Привет'}], system='Ты — Ева...', max_tokens=500)\n\nasync def call_gpt(messages: list[dict], system: str | None = None, max_tokens: int = 500, timeout: int = 15, response_format: dict | None = None) -> str\n  — GPT-4o-mini через openai SDK для фоновых задач. Retry: 2. response_format={'type':'json_object'} для JSON.\n  — Пример: response = await call_gpt(messages=[...], system='Обнови профиль', response_format={'type':'json_object'})\n\nclass LLMError(Exception): pass\n\nИмпорты: anthropic, openai. Модели из shared/config.py (CLAUDE_MODEL, GPT_MODEL). logging, не print.",
           "depends_on": [],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         },
         {
           "id": "8.2",
           "description": "shared/models.py — 16 Pydantic-моделей",
           "agent": "coder-backend",
           "files": ["shared/models.py"],
-          "contract": "СОЗДАТЬ shared/models.py. 16 Pydantic BaseModel:\n\n1. SemanticProfile(name, age, city, family, work, main_problem, root_pattern, current_goal, communication_style, triggers, strengths, achievements, sensitive_topics, people: list[PersonEntry])\n2. PersonEntry(name, relation, description, how_user_calls)\n3. ProfileDiff(set_fields: dict, add_to_lists: dict, remove_fields: list)\n4. Episode(id, title, summary, emotional_tone, key_insight, commitments: list[str], techniques_worked: list[str], techniques_failed: list[str])\n5. ProceduralMemory(what_works: list[str], what_doesnt: list[str], communication_style: dict)\n6. PhaseEvaluation(recommendation: str, confidence: float, criteria_met: list[str]) — recommendation='advance'|'stay'\n7. Goal(id, telegram_id, title, status, created_at, completed_at, archived_at)\n8. GoalStep(id, goal_id, telegram_id, title, status, sort_order, deadline_at, completed_at)\n9. MiniUpdateResult(names: list[str], commitments: list[str], emotions: list[str], age: int | None)\n10. FullUpdateResult(telegram_id, episode_id, profile_updated, procedural_updated, pending_facts_processed, error)\n11. ContextMeta(filled_vars: list[str], tokens_per_var: dict[str, int], was_truncated: bool, truncated_vars: list[str])\n12. DailyMessage(telegram_id, message_text, day_number)\n13. PauseContext(pause_minutes, last_topic, last_emotion)\n14. SessionFeedback(telegram_id, episode_id, feeling_after, tried_in_practice)\n15. WebappEvent(telegram_id, event_type, page, metadata)\n16. CrisisResult(level: int, trigger: str | None, is_verified: bool)\n\nВсе поля Optional где уместно. model_config с from_attributes=True.\n\nПримеры инстанцирования:\n  profile = SemanticProfile(name='Маша', age=32, city='Москва', people=[PersonEntry(name='мама', relation='мать', description='строгая', how_user_calls='мама')])\n  episode = Episode(id=1, title='Ссора с мамой', summary='...', emotional_tone='тревога → облегчение', key_insight='Мне важно чтобы меня слышали')\n  result = FullUpdateResult(telegram_id=123456, episode_id=42, profile_updated=True, procedural_updated=True, pending_facts_processed=5, error=None)\n  crisis = CrisisResult(level=2, trigger='хочу умереть', is_verified=True)",
           "depends_on": [],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         },
         {
           "id": "8.3",
           "description": "shared/config.py — обновление (новые параметры)",
           "agent": "coder-backend",
           "files": ["shared/config.py"],
-          "contract": "ОБНОВИТЬ shared/config.py. Добавить:\n\nCLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-sonnet-4-5-20250514')\nGPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o-mini')\nOWNER_TELEGRAM_ID = int(os.getenv('OWNER_TELEGRAM_ID', '0'))\nTOKEN_BUDGET_SOFT = 3800\nRATE_LIMIT_PER_MINUTE = 60\nCLAUDE_TIMEOUT = 30\nGPT_TIMEOUT = 15\nFALLBACK_RESPONSE = 'Мм, мне нужно немного подумать. Напиши ещё раз через минутку?'\nFULL_UPDATE_PAUSE_MINUTES = 30\nALERT_THRESHOLDS = {'consecutive_empty_context': 3, 'consecutive_errors': 3, 'latency_critical_ms': 25000, 'crisis_level_3': 1}\n\nНЕ удалять существующие переменные. Убрать CLAUDE_MODEL_FAST (больше не используется).\n\nПримеры использования:\n  from shared.config import TOKEN_BUDGET_SOFT, FALLBACK_RESPONSE, ALERT_THRESHOLDS\n  if tokens > TOKEN_BUDGET_SOFT: truncate()\n  if error_count >= ALERT_THRESHOLDS['consecutive_errors']: await alert()",
           "depends_on": [],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         },
         {
           "id": "8.4",
-          "description": "Тесты для llm_client, models, config",
+          "description": "Тесты для llm_client, models, config (36 тестов, все зелёные)",
           "agent": "tester",
           "files": ["tests/unit/test_llm_client.py", "tests/unit/test_models.py"],
-          "contract": "Тесты: llm_client (mock anthropic/openai, timeout, retry, LLMError, fallback), models (валидация всех 16 моделей, Optional поля, from_attributes), config (все новые переменные существуют). Минимум 25 тестов.",
           "depends_on": ["8.1", "8.2", "8.3"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         }
       ]
     },

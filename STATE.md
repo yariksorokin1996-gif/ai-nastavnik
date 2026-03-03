@@ -1,7 +1,7 @@
 # AI Наставник — STATE.md
 
 ## Фаза: АРХИТЕКТУРА (Фаза 2)
-## Подэтап: Шаги 0-7 завершены. Следующий: шаг 8 (фундамент — LLM-обёртка + модели + конфиг)
+## Подэтап: Шаги 0-8 завершены. Следующий: шаг 9 (ядро памяти — profile + episodes + procedural)
 
 ## ТЗ
 MVP тестируем на **10 друзьях**. Без подписки. Webapp включён. Тёмная тема включена.
@@ -157,6 +157,13 @@ MVP тестируем на **10 друзьях**. Без подписки. Weba
 - ✅ **Баг зафиксирован:** pattern_detector.py вызывает add_pattern() вместо add_or_increment_pattern()
 - ✅ **Состояние кодовой базы задокументировано:** что переписать vs создать vs обновить
 
+### Шаг 8: Фундамент — LLM-обёртка + модели + конфиг (сессия 03.03.2026)
+- ✅ **shared/config.py обновлён** — убраны старые переменные (CLAUDE_MODEL_FAST, FREE_SESSIONS_LIMIT, MORNING/EVENING), добавлены 11 новых (CLAUDE_MODEL, GPT_MODEL, OWNER_TELEGRAM_ID, TOKEN_BUDGET_SOFT, RATE_LIMIT_PER_MINUTE, CLAUDE_TIMEOUT, GPT_TIMEOUT, FALLBACK_RESPONSE, FULL_UPDATE_PAUSE_MINUTES, ALERT_THRESHOLDS)
+- ✅ **shared/llm_client.py создан** — call_claude (prompt caching, retry 1, fallback), call_gpt (retry 2, backoff, LLMError), LLMError exception, синглтон-клиенты, логирование tokens/latency
+- ✅ **shared/models.py создан** — 16 Pydantic-моделей (SemanticProfile, Episode, CrisisResult, PhaseEvaluation, MiniUpdateResult и др.), все с ConfigDict(from_attributes=True)
+- ✅ **36 тестов** — 13 llm_client (success, timeout, retry, auth, caching, json_format) + 20 models (все 16 моделей + ValidationError) + 3 config. Все зелёные (0.57с)
+- ✅ **77 тестов всего** — 41 database + 36 новых, все зелёные (1.10с)
+
 ### Доработка шага 6 + Шаг 7: Промпты (сессия 03.03.2026)
 - ✅ **Аудит шага 6** — 3 spec-файла ОК, CRUD-ссылки ОК, дополнены 8 контрактов (обработка ошибок) + примеры к 8.2/8.3
 - ✅ **Шаг 7:** 10 промптов → `docs/07_prompts_spec.md`:
@@ -227,8 +234,9 @@ specs/
 6. ~~**Шаг 5:** Схема хранения данных (БД)~~ ✅
 7. ~~**Шаг 6:** Контракты модулей (specs/)~~ ✅
 8. ~~**Шаг 7:** Спецификация промптов (10 штук)~~ ✅
-9. **Шаг 8:** Фундамент — LLM-обёртка + Pydantic-модели + Config ← СЛЕДУЮЩИЙ (КОД!)
-10. После шага 8 → шаги 9+ (ядро памяти, контекст, фазы, session_manager...)
+9. ~~**Шаг 8:** Фундамент — LLM-обёртка + Pydantic-модели + Config~~ ✅
+10. **Шаг 9:** Ядро памяти — profile_manager + episode_manager + procedural_memory ← СЛЕДУЮЩИЙ
+11. После шага 9 → шаги 10+ (контекст, фазы, session_manager...)
 
 ## Нерешённые вопросы
 Нет. Все стоп-факторы из аудита закрыты.
