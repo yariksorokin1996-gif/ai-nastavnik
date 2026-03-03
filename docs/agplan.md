@@ -395,14 +395,15 @@ Lead:
      f. tester: тесты (ВКЛЮЧАЯ контракт в промпте!)
      g. CRITIC-2 (результат): проверяет код + тесты (чеклисты Б + В)
         → PASS → шаг h
-        → FIX NEEDED → Lead решает:
-          P0 → FIX обязателен (resume coder/tester)
-          P1 → FIX если быстро, иначе tech debt
-          P2 → пропустить
+        → FIX NEEDED:
+          g1. ЗАПИСАТЬ каждый P0/P1 в tasks.json log (date, task_id, agent, tag, description)
+          g2. errors_since_retro += кол-во P0/P1
+          g3. Исправить: P0 → обязателен (resume coder/tester), P1 → если быстро, P2 → пропустить
+          g4. errors_since_retro >= 3? → РЕТРОСПЕКТИВА (секция 8.2) → errors_since_retro = 0
+          g5. ПОКАЗАТЬ пользователю таблицу отчёта (формат в CLAUDE.md ## Отчёт после критика)
      h. pytest → зелёный?
         - Да → tasks.json done:true + git commit
         - Нет → resume агента с ошибкой (до 3 попыток)
-     i. Записать ошибки (если были) в log
   4. Следующая задача
 ```
 
@@ -596,7 +597,13 @@ coder-backend: реализация
 tester: тесты (КОНТРАКТ включён в промпт!)
   ↓
 CRITIC-2: проверяет код + тесты (чеклисты Б + В)
-  → PASS → продолжаем / FIX NEEDED → Lead решает (P0/P1/P2)
+  → PASS → продолжаем
+  → FIX NEEDED:
+      g1. ЗАПИСАТЬ P0/P1 в tasks.json log
+      g2. errors_since_retro += кол-во P0/P1
+      g3. Исправить (P0 обязательно, P1 если быстро, P2 пропустить)
+      g4. errors_since_retro >= 3? → РЕТРОСПЕКТИВА
+      g5. ПОКАЗАТЬ пользователю таблицу отчёта
   ↓
 Lead: pytest → зелёный?
   ├── Да → commit + done:true

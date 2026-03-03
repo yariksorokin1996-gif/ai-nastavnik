@@ -566,8 +566,37 @@
       "date": "2026-03-03",
       "event": "bug_found",
       "description": "bot/memory/pattern_detector.py:54 вызывает add_pattern(), но в database.py функция называется add_or_increment_pattern(). Исправить при рефакторе шага 12."
+    },
+    {
+      "date": "2026-03-03",
+      "task_id": "8.1",
+      "agent": "coder-backend",
+      "event": "critic_p1",
+      "tag": "missing_backoff",
+      "description": "call_claude без sleep между retry — добавлен sleep(1). FIXED."
+    },
+    {
+      "date": "2026-03-03",
+      "task_id": "8.2",
+      "agent": "coder-backend",
+      "event": "critic_p1",
+      "tag": "spec_drift",
+      "description": "SessionFeedback поля не совпадают с plan.md — episode_id Optional, +messages_in_session, tried_in_practice int. FIXED."
+    },
+    {
+      "date": "2026-03-03",
+      "task_id": "8.4",
+      "agent": "tester",
+      "event": "critic_p1",
+      "tag": "incomplete_coverage",
+      "description": "max_tokens, timeout, system=None не протестированы — 4 теста добавлены. FIXED."
+    },
+    {
+      "date": "2026-03-03",
+      "event": "retro",
+      "description": "Ретроспектива шаг 8: паттерн — coder-backend не сверяется с первоисточником (plan.md). Уроки: coder-backend (2), tester (1)."
     }
   ],
   "errors_since_retro": 0,
-  "last_retro": null
+  "last_retro": "2026-03-03"
 }
