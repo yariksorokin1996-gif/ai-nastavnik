@@ -88,7 +88,7 @@
           "description": "Полная перезапись database.py: 17 таблиц + init_db + CRUD",
           "agent": "coder-backend",
           "files": ["bot/memory/database.py"],
-          "contract": "Перезаписать bot/memory/database.py. 17 таблиц (users, messages, processed_messages, semantic_profiles, profile_versions, episodes, procedural_memory, pending_facts, emotion_log, patterns, phase_transitions, goals, goal_steps, daily_messages, session_feedback, analytics_weekly, webapp_events). SQL точно из docs/plan.md строки 730-920 + 3 дополнительных (processed_messages, pending_facts, emotion_log из docs/04_dialog_engine.md). users: добавить last_full_update_at TEXT + last_automated_msg_at TEXT. PRAGMA journal_mode=WAL + foreign_keys=ON. DROP TABLE IF EXISTS checkins. asynccontextmanager get_db(). init_db(). CRUD async для каждой таблицы. _parse_json() хелпер. logging не print. from shared.config import DB_PATH.",
+          "contract": "Перезаписать bot/memory/database.py. 17 таблиц. SQL из docs/plan.md + 3 доп. таблицы из docs/04_dialog_engine.md. WAL + FK. 52 CRUD-функции.",
           "depends_on": [],
           "done": true,
           "completed_at": "2026-03-03"
@@ -98,7 +98,7 @@
           "description": "Тесты для database.py",
           "agent": "tester",
           "files": ["tests/unit/test_database.py"],
-          "contract": "41 pytest-тест: init_db (17 таблиц, WAL, FK), CRUD users/messages/profiles/episodes/patterns/goals/feedback/webapp_events, idempotency, retention",
+          "contract": "41 pytest-тест: init_db, CRUD, idempotency, retention",
           "depends_on": ["5.1"],
           "done": true,
           "completed_at": "2026-03-03"
@@ -109,7 +109,50 @@
       "step": 6,
       "name": "Контракты модулей",
       "output": "specs/",
-      "done": false
+      "done": true,
+      "completed_at": "2026-03-03",
+      "tasks": [
+        {
+          "id": "6.1",
+          "description": "Spec: context_builder (8 переменных, обрезка, бюджет 3800 токенов)",
+          "agent": "lead",
+          "files": ["specs/context_builder_spec.md"],
+          "contract": "Полная спецификация: назначение, 6 зависимостей с примерами, API build_context(), алгоритм 7 шагов, таблица обрезки 8 приоритетов, 3 примера вызовов, edge cases, что НЕ делать",
+          "depends_on": [],
+          "done": true,
+          "completed_at": "2026-03-03"
+        },
+        {
+          "id": "6.2",
+          "description": "Spec: full_memory_update (APScheduler job, GPT-4o-mini)",
+          "agent": "lead",
+          "files": ["specs/full_memory_update_spec.md"],
+          "contract": "Полная спецификация: назначение, 6 зависимостей, run_full_memory_update() + update_single_user(), алгоритм 5 шагов, merge-правила профиля, retry/alert, edge cases, что НЕ делать",
+          "depends_on": [],
+          "done": true,
+          "completed_at": "2026-03-03"
+        },
+        {
+          "id": "6.3",
+          "description": "Spec: session_manager (14 шагов обработки сообщения)",
+          "agent": "lead",
+          "files": ["specs/session_manager_spec.md"],
+          "contract": "Полная спецификация: назначение, 10 зависимостей с примерами вызовов каждой, process_message(), 14 шагов, мьютекс, idempotency, rate limiting, кризис 3 уровня, мини-обновление (regex), проверка фазы, диаграмма потока, edge cases, что НЕ делать",
+          "depends_on": [],
+          "done": true,
+          "completed_at": "2026-03-03"
+        },
+        {
+          "id": "6.4",
+          "description": "Контракты всех модулей шагов 8-17 (в tasks.json)",
+          "agent": "lead",
+          "files": [".state/tasks.json"],
+          "contract": "16 модулей с полями contract (сигнатуры, типы, ошибки, примеры вызовов)",
+          "depends_on": ["6.1", "6.2", "6.3"],
+          "done": true,
+          "completed_at": "2026-03-03"
+        }
+      ]
     },
     {
       "step": 7,
@@ -119,63 +162,353 @@
     },
     {
       "step": 8,
-      "name": "Фундамент: APScheduler + Pydantic + DB + Config",
-      "output": "shared/models.py, bot/memory/database.py, shared/config.py",
-      "done": false
+      "name": "Фундамент: LLM-обёртка + Pydantic-модели + Config",
+      "output": "shared/llm_client.py, shared/models.py, shared/config.py",
+      "done": false,
+      "tasks": [
+        {
+          "id": "8.1",
+          "description": "shared/llm_client.py — LLM-обёртка (Claude + GPT)",
+          "agent": "coder-backend",
+          "files": ["shared/llm_client.py"],
+          "contract": "СОЗДАТЬ shared/llm_client.py. 2 функции + 1 исключение:\n\nasync def call_claude(messages: list[dict], system: str, max_tokens: int = 1024, timeout: int = 30) -> str\n  — Claude Sonnet 4.5 для диалога. Prompt caching: system с cache_control. Retry: 1. Fallback: 'Мм, мне нужно немного подумать...'\n  — Пример: response = await call_claude(messages=[{'role':'user','content':'Привет'}], system='Ты — Ева...', max_tokens=500)\n\nasync def call_gpt(messages: list[dict], system: str | None = None, max_tokens: int = 500, timeout: int = 15, response_format: dict | None = None) -> str\n  — GPT-4o-mini через openai SDK для фоновых задач. Retry: 2. response_format={'type':'json_object'} для JSON.\n  — Пример: response = await call_gpt(messages=[...], system='Обнови профиль', response_format={'type':'json_object'})\n\nclass LLMError(Exception): pass\n\nИмпорты: anthropic, openai. Модели из shared/config.py (CLAUDE_MODEL, GPT_MODEL). logging, не print.",
+          "depends_on": [],
+          "done": false
+        },
+        {
+          "id": "8.2",
+          "description": "shared/models.py — 16 Pydantic-моделей",
+          "agent": "coder-backend",
+          "files": ["shared/models.py"],
+          "contract": "СОЗДАТЬ shared/models.py. 16 Pydantic BaseModel:\n\n1. SemanticProfile(name, age, city, family, work, main_problem, root_pattern, current_goal, communication_style, triggers, strengths, achievements, sensitive_topics, people: list[PersonEntry])\n2. PersonEntry(name, relation, description, how_user_calls)\n3. ProfileDiff(set_fields: dict, add_to_lists: dict, remove_fields: list)\n4. Episode(id, title, summary, emotional_tone, key_insight, commitments: list[str], techniques_worked: list[str], techniques_failed: list[str])\n5. ProceduralMemory(what_works: list[str], what_doesnt: list[str], communication_style: dict)\n6. PhaseEvaluation(recommendation: str, confidence: float, criteria_met: list[str]) — recommendation='advance'|'stay'\n7. Goal(id, telegram_id, title, status, created_at, completed_at, archived_at)\n8. GoalStep(id, goal_id, telegram_id, title, status, sort_order, deadline_at, completed_at)\n9. MiniUpdateResult(names: list[str], commitments: list[str], emotions: list[str], age: int | None)\n10. FullUpdateResult(telegram_id, episode_id, profile_updated, procedural_updated, pending_facts_processed, error)\n11. ContextMeta(filled_vars: list[str], tokens_per_var: dict[str, int], was_truncated: bool, truncated_vars: list[str])\n12. DailyMessage(telegram_id, message_text, day_number)\n13. PauseContext(pause_minutes, last_topic, last_emotion)\n14. SessionFeedback(telegram_id, episode_id, feeling_after, tried_in_practice)\n15. WebappEvent(telegram_id, event_type, page, metadata)\n16. CrisisResult(level: int, trigger: str | None, is_verified: bool)\n\nВсе поля Optional где уместно. model_config с from_attributes=True.",
+          "depends_on": [],
+          "done": false
+        },
+        {
+          "id": "8.3",
+          "description": "shared/config.py — обновление (новые параметры)",
+          "agent": "coder-backend",
+          "files": ["shared/config.py"],
+          "contract": "ОБНОВИТЬ shared/config.py. Добавить:\n\nCLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-sonnet-4-5-20250514')\nGPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o-mini')\nOWNER_TELEGRAM_ID = int(os.getenv('OWNER_TELEGRAM_ID', '0'))\nTOKEN_BUDGET_SOFT = 3800\nRATE_LIMIT_PER_MINUTE = 60\nCLAUDE_TIMEOUT = 30\nGPT_TIMEOUT = 15\nFALLBACK_RESPONSE = 'Мм, мне нужно немного подумать. Напиши ещё раз через минутку?'\nFULL_UPDATE_PAUSE_MINUTES = 30\nALERT_THRESHOLDS = {'consecutive_empty_context': 3, 'consecutive_errors': 3, 'latency_critical_ms': 25000, 'crisis_level_3': 1}\n\nНЕ удалять существующие переменные. Убрать CLAUDE_MODEL_FAST (больше не используется).",
+          "depends_on": [],
+          "done": false
+        },
+        {
+          "id": "8.4",
+          "description": "Тесты для llm_client, models, config",
+          "agent": "tester",
+          "files": ["tests/unit/test_llm_client.py", "tests/unit/test_models.py"],
+          "contract": "Тесты: llm_client (mock anthropic/openai, timeout, retry, LLMError, fallback), models (валидация всех 16 моделей, Optional поля, from_attributes), config (все новые переменные существуют). Минимум 25 тестов.",
+          "depends_on": ["8.1", "8.2", "8.3"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 9,
       "name": "Ядро памяти: profile + episodes + procedural",
       "output": "bot/memory/",
-      "done": false
+      "done": false,
+      "tasks": [
+        {
+          "id": "9.1",
+          "description": "bot/memory/profile_manager.py — управление семантическим профилем",
+          "agent": "coder-backend",
+          "files": ["bot/memory/profile_manager.py"],
+          "contract": "СОЗДАТЬ bot/memory/profile_manager.py. 5 функций:\n\nasync def create_empty_profile(telegram_id: int) -> SemanticProfile — пустой профиль для нового юзера\nasync def get_profile(telegram_id: int) -> SemanticProfile | None — из БД, Pydantic валидация\nasync def update_profile(telegram_id: int, diff: ProfileDiff) -> SemanticProfile — diff-обновление, version++, сохраняет в profile_versions\nasync def rollback_profile(telegram_id: int, version: int) -> SemanticProfile — откат\nasync def get_profile_as_text(telegram_id: int) -> str — ≤1000 токенов, формат '=== ПРОФИЛЬ ===\\n...'\n\nПример: profile = await get_profile(123456); text = await get_profile_as_text(123456)\nИспользует: database.get_profile, database.upsert_profile. Уровни уверенности: high/medium/low. Карта людей в people[].",
+          "depends_on": ["8.1", "8.2"],
+          "done": false
+        },
+        {
+          "id": "9.2",
+          "description": "bot/memory/episode_manager.py — эпизоды (конспекты разговоров)",
+          "agent": "coder-backend",
+          "files": ["bot/memory/episode_manager.py"],
+          "contract": "СОЗДАТЬ bot/memory/episode_manager.py. 3 функции:\n\nasync def create_episode(telegram_id: int, messages: list[dict]) -> Episode — GPT-4o-mini, JSON: title/summary/emotional_tone/key_insight/commitments/techniques. Использует call_gpt + EPISODE_SUMMARY_PROMPT\nasync def find_relevant_episodes(telegram_id: int, current_message: str, limit: int = 3) -> list[Episode] — GPT-4o-mini по заголовкам, fallback: keyword search. Использует database.get_episode_headers + database.get_episodes_by_ids\nasync def get_episode_titles(telegram_id: int) -> list[str]\n\nПример: episodes = await find_relevant_episodes(123456, 'поругалась с мамой', limit=3)\nИспользует: database.create_episode, database.get_episode_headers, database.get_episodes_by_ids, shared.llm_client.call_gpt",
+          "depends_on": ["8.1", "8.2"],
+          "done": false
+        },
+        {
+          "id": "9.3",
+          "description": "bot/memory/procedural_memory.py — процедурная память",
+          "agent": "coder-backend",
+          "files": ["bot/memory/procedural_memory.py"],
+          "contract": "СОЗДАТЬ bot/memory/procedural_memory.py. 3 функции:\n\nasync def get_procedural(telegram_id: int) -> ProceduralMemory | None\nasync def update_procedural(telegram_id: int, updates: dict) -> ProceduralMemory — merge what_works/what_doesnt (не перезапись)\nasync def get_procedural_as_text(telegram_id: int) -> str — ≤300 токенов, формат '=== КАК С НЕЙ РАБОТАТЬ ===\\n✅ Работает:...\\n❌ Не работает:...'\n\nПример: text = await get_procedural_as_text(123456)\nИспользует: database.get_procedural, database.upsert_procedural",
+          "depends_on": ["8.2"],
+          "done": false
+        },
+        {
+          "id": "9.4",
+          "description": "Тесты для memory-модулей",
+          "agent": "tester",
+          "files": ["tests/unit/test_profile_manager.py", "tests/unit/test_episode_manager.py", "tests/unit/test_procedural_memory.py"],
+          "contract": "Тесты: profile_manager (create, get, update с diff, rollback, as_text ≤1000 tok, version++), episode_manager (create с mock LLM, find_relevant с mock, keyword fallback), procedural (get, update merge, as_text ≤300 tok). Mock LLM. Минимум 20 тестов.",
+          "depends_on": ["9.1", "9.2", "9.3"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 10,
       "name": "Контекст и промпт: context_builder + system_prompt + memory_prompts",
       "output": "bot/memory/context_builder.py, bot/prompts/",
-      "done": false
+      "done": false,
+      "tasks": [
+        {
+          "id": "10.1",
+          "description": "bot/memory/context_builder.py — сборка контекста (ПЕРЕПИСАТЬ)",
+          "agent": "coder-backend",
+          "files": ["bot/memory/context_builder.py"],
+          "contract": "ПЕРЕПИСАТЬ bot/memory/context_builder.py (13 строк → ~200). По specs/context_builder_spec.md:\n\nasync def build_context(telegram_id: int, current_message: str) -> tuple[str, int, ContextMeta]\n\n8 переменных, обрезка по 8 приоритетам, бюджет 3800 токенов. _safe_call обёртка. asyncio.gather для параллельных запросов. _estimate_tokens (3.3 tok/слово). Fallback для пустых переменных. Порядок сборки: base_prompt первым (для prompt caching).",
+          "depends_on": ["9.1", "9.2", "9.3"],
+          "done": false
+        },
+        {
+          "id": "10.2",
+          "description": "bot/prompts/system_prompt.py — базовый промпт Евы (ПЕРЕПИСАТЬ)",
+          "agent": "coder-backend",
+          "files": ["bot/prompts/system_prompt.py"],
+          "contract": "ПЕРЕПИСАТЬ bot/prompts/system_prompt.py (299 строк → ~100). Удалить ВСЁ про «Алекса», 5 старых фаз, 3 стиля.\n\ndef build_system_prompt(current_phase: str) -> str — собирает базовый промпт из docs/02_prompts.md + фазовую инструкцию.\n\nBASE_PROMPT — текст из docs/02_prompts.md (Ева, тёплая подруга). PHASE_DESCRIPTIONS — 6 фаз (ЗНАКОМСТВО, ЗЕРКАЛО, НАСТРОЙКА, ПОРТРЕТ, ЦЕЛЬ, РИТМ). Защита от prompt injection. grep 'Алекс' = 0.",
+          "depends_on": [],
+          "done": false
+        },
+        {
+          "id": "10.3",
+          "description": "bot/prompts/memory_prompts.py — промпты для LLM-задач памяти",
+          "agent": "coder-backend",
+          "files": ["bot/prompts/memory_prompts.py"],
+          "contract": "СОЗДАТЬ bot/prompts/memory_prompts.py. Константы:\n\nEPISODE_SUMMARY_PROMPT — промпт для create_episode (GPT-4o-mini, JSON output: title/summary/emotional_tone/key_insight/commitments/techniques)\nPROFILE_UPDATE_PROMPT — промпт для update_profile в full_memory_update (GPT-4o-mini, JSON diff: set_fields/add_to_lists)\nEPISODE_SELECTION_PROMPT — промпт для find_relevant_episodes (GPT-4o-mini, выбор 2-3 из заголовков)\nPHASE_EVALUATION_PROMPT — промпт для evaluate_phase (GPT-4o-mini, JSON: recommendation/confidence/criteria_met)\n\nВсе промпты на русском. Формат: response_format=json_object.",
+          "depends_on": [],
+          "done": false
+        },
+        {
+          "id": "10.4",
+          "description": "Тесты для context_builder и промптов",
+          "agent": "tester",
+          "files": ["tests/unit/test_context_builder.py", "tests/unit/test_system_prompt.py"],
+          "contract": "Тесты: context_builder (новый юзер ~1550 tok, активный ~3800, обрезка по приоритетам, _safe_call при ошибках, пустые переменные → fallback, ContextMeta корректна), system_prompt (build_system_prompt для каждой из 6 фаз, grep 'Алекс' = 0, grep 'Ева' > 0). Mock зависимости. Минимум 15 тестов.",
+          "depends_on": ["10.1", "10.2", "10.3"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 11,
       "name": "Фазы и цели: phase_evaluator + goal_manager",
       "output": "bot/prompts/phase_evaluator.py, bot/goal_manager.py",
-      "done": false
+      "done": false,
+      "tasks": [
+        {
+          "id": "11.1",
+          "description": "bot/prompts/phase_evaluator.py — оценка фазы (GPT-4o-mini)",
+          "agent": "coder-backend",
+          "files": ["bot/prompts/phase_evaluator.py"],
+          "contract": "СОЗДАТЬ bot/prompts/phase_evaluator.py. 1 функция:\n\nasync def evaluate_phase(telegram_id: int, messages: list[dict]) -> PhaseEvaluation\n  — Вход: telegram_id + последние 10 сообщений. Использует call_gpt + PHASE_EVALUATION_PROMPT.\n  — Выход: PhaseEvaluation(recommendation='advance'|'stay', confidence=0.0-1.0, criteria_met=[...])\n  — Невалидный JSON → 'stay' (безопасный fallback). Timeout → 'stay'.\n  — Пример: eval = await evaluate_phase(123456, recent_10); if eval.recommendation == 'advance' and eval.confidence >= 0.7: advance()\n\nИспользует: call_gpt, get_user (для current_phase), PHASE_EVALUATION_PROMPT",
+          "depends_on": ["8.1"],
+          "done": false
+        },
+        {
+          "id": "11.2",
+          "description": "bot/goal_manager.py — управление целями",
+          "agent": "coder-backend",
+          "files": ["bot/goal_manager.py"],
+          "contract": "СОЗДАТЬ bot/goal_manager.py. 7 функций:\n\nasync def create_goal(telegram_id: int, title: str) -> Goal — max 1 активная\nasync def generate_steps(goal_id: int, context: str) -> list[GoalStep] — GPT-4o-mini, max 7 шагов\nasync def complete_step(step_id: int) -> GoalStep\nasync def skip_step(step_id: int) -> GoalStep\nasync def get_today_steps(telegram_id: int) -> list[GoalStep] — deadline = today\nasync def get_overdue_steps(telegram_id: int) -> list[GoalStep] — pending AND deadline < now - 1h\nasync def archive_goal(goal_id: int) -> Goal\n\nПример: goal = await create_goal(123456, 'Поговорить с мамой'); steps = await generate_steps(goal.id, context='Маша, 32, конфликт...')\nИспользует: database.create_goal, database.get_active_goal, database.add_goal_step, database.update_step_status, database.update_goal_status, call_gpt",
+          "depends_on": ["8.1", "8.2"],
+          "done": false
+        },
+        {
+          "id": "11.3",
+          "description": "Тесты для phase_evaluator и goal_manager",
+          "agent": "tester",
+          "files": ["tests/unit/test_phase_evaluator.py", "tests/unit/test_goal_manager.py"],
+          "contract": "Тесты: phase_evaluator (advance с confidence >= 0.7, stay при низком confidence, невалидный JSON → stay, timeout → stay), goal_manager (create, max 1 активная, generate_steps max 7, complete/skip, today/overdue, archive). Mock LLM. Минимум 15 тестов.",
+          "depends_on": ["11.1", "11.2"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 12,
       "name": "Главный мотор: session_manager + full_memory_update + handlers",
-      "output": "bot/session_manager.py, bot/handlers.py",
-      "done": false
+      "output": "bot/session_manager.py, bot/memory/full_memory_update.py, bot/handlers.py",
+      "done": false,
+      "tasks": [
+        {
+          "id": "12.1",
+          "description": "bot/session_manager.py — 14 шагов обработки (ПЕРЕПИСАТЬ)",
+          "agent": "coder-backend",
+          "files": ["bot/session_manager.py"],
+          "contract": "ПЕРЕПИСАТЬ bot/session_manager.py (198 строк → ~350). По specs/session_manager_spec.md:\n\nasync def process_message(telegram_id, message_id, text, voice_file_id, user_name) -> str | None\n\n14 шагов: idempotency → lock → pause → voice → crisis → rate limit → save → context → Claude → save response → async mini-update → async phase check → counters. Мьютекс dict[int, Lock]. Rate limit 60/min. Кризис 3 уровня (L3 = шаблон). Метрики: latency_ms, source, char_length. FALLBACK_RESPONSE при ошибках.",
+          "depends_on": ["10.1", "11.1"],
+          "done": false
+        },
+        {
+          "id": "12.2",
+          "description": "bot/memory/full_memory_update.py — фоновое обновление памяти",
+          "agent": "coder-backend",
+          "files": ["bot/memory/full_memory_update.py"],
+          "contract": "СОЗДАТЬ bot/memory/full_memory_update.py. По specs/full_memory_update_spec.md:\n\nasync def run_full_memory_update() -> None — APScheduler job, каждые 5 мин\nasync def update_single_user(telegram_id: int) -> FullUpdateResult\n\n5 шагов: загрузка сессии → конспект (GPT-4o-mini) → профиль (GPT-4o-mini, merge) → процедурная → финализация. Retry: 3 ошибки → alert. needs_full_update=1 при ошибке. Вызывает ask_feeling после создания эпизода.",
+          "depends_on": ["9.1", "9.2", "9.3"],
+          "done": false
+        },
+        {
+          "id": "12.3",
+          "description": "bot/handlers.py — обновление (idempotency, callback handlers)",
+          "agent": "coder-backend",
+          "files": ["bot/handlers.py"],
+          "contract": "ОБНОВИТЬ bot/handlers.py (275 строк). Изменения:\n1. handle_message: передавать message_id в process_message (для idempotency)\n2. handle_voice: передавать message_id и voice.file_id\n3. Добавить callback_query_handler для inline-кнопок feedback (feeling:1/2/3, enact:0/1) → database.update_feeling / update_enactment\n4. start(): добавить дисклеймер 'Ева — не терапевт...'\n5. Убрать: кнопки 'Просто поболтать'/'Вернуться к работе' (режимы убраны из MVP)\n6. Убрать: style_choice, style_command (стили убраны)\n7. Добавить: /forget (удалить профиль + эпизоды), /delete_account (удалить всё)",
+          "depends_on": ["12.1"],
+          "done": false
+        },
+        {
+          "id": "12.4",
+          "description": "shared/safety.py — обновление (логирование + alerter)",
+          "agent": "coder-backend",
+          "files": ["shared/safety.py"],
+          "contract": "ОБНОВИТЬ shared/safety.py. Изменения:\n1. detect_crisis(text: str) -> CrisisResult — regex + LLM-верификация (GPT-4o-mini, timeout 10с)\n2. Логирование: level, trigger_text, telegram_id при каждом срабатывании\n3. CRISIS_RESPONSE_LEVEL3 = 'Я слышу, что тебе сейчас очень тяжело...8-800-2000-122'\n4. CRISIS_INSTRUCTION_LEVEL2 = '⚠️ КРИЗИС: спроси «Ты сейчас в безопасности?»...'\n5. False positive защита: 'умираю от смеха' → НЕ кризис (LLM верификация)",
+          "depends_on": ["8.1"],
+          "done": false
+        },
+        {
+          "id": "12.5",
+          "description": "Тесты для session_manager, full_memory_update, handlers, safety",
+          "agent": "tester",
+          "files": ["tests/unit/test_session_manager.py", "tests/unit/test_full_memory_update.py"],
+          "contract": "Тесты: session_manager (idempotency, мьютекс, crisis L3 шаблон, rate limit, voice fallback, Claude timeout → fallback, mini-update async), full_memory_update (5 шагов, retry при ошибке, needs_full_update=1 при fail, merge профиля), safety (3 уровня, false positive, LLM verify). Mock LLM + DB. Минимум 25 тестов.",
+          "depends_on": ["12.1", "12.2", "12.3", "12.4"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 13,
       "name": "Ева пишет первой: daily_messenger + silence_reminder",
       "output": "bot/daily_messenger.py",
-      "done": false
+      "done": false,
+      "tasks": [
+        {
+          "id": "13.1",
+          "description": "bot/daily_messenger.py — ежедневные сообщения + тишина",
+          "agent": "coder-backend",
+          "files": ["bot/daily_messenger.py"],
+          "contract": "СОЗДАТЬ bot/daily_messenger.py. 3 функции:\n\nasync def generate_daily_message(telegram_id: int, day_number: int) -> str — GPT-4o-mini с профилем, ~200 токенов\n  Пример: msg = await generate_daily_message(123456, day_number=3) → 'Привет, Маша! Вчера ты говорила про...'\n\nasync def send_daily_messages() -> None — APScheduler job. Первые 3 дня 19-21ч, далее по активности. Условие: если 3 дня не отвечает → прекращаем. Защита: НЕ шлёт если last_automated_msg < 2ч.\n  Пример регистрации: scheduler.add_job(send_daily_messages, 'cron', hour=19)\n\nasync def check_silence() -> None — APScheduler job, каждые 6ч. Молчание >24ч → мягкое напоминание. Защита: НЕ шлёт если last_automated_msg < 6ч.\n\nИспользует: call_gpt, get_profile_as_text, database.get_all_users, database.get_user, database.update_user (last_automated_msg_at), database.create_daily_message, Telegram bot.send_message",
+          "depends_on": ["9.1", "8.1"],
+          "done": false
+        },
+        {
+          "id": "13.2",
+          "description": "Тесты для daily_messenger",
+          "agent": "tester",
+          "files": ["tests/unit/test_daily_messenger.py"],
+          "contract": "Тесты: generate (mock LLM, ~200 tok), send_daily (3 дня без ответа → стоп, защита 2ч), check_silence (>24ч → напоминание, защита 6ч). Mock Telegram bot. Минимум 8 тестов.",
+          "depends_on": ["13.1"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 14,
       "name": "Аналитика: feedback + alerter + daily/weekly reports",
       "output": "bot/analytics/",
-      "done": false
+      "done": false,
+      "tasks": [
+        {
+          "id": "14.1",
+          "description": "bot/analytics/__init__.py + alerter.py",
+          "agent": "coder-backend",
+          "files": ["bot/analytics/__init__.py", "bot/analytics/alerter.py"],
+          "contract": "СОЗДАТЬ bot/analytics/alerter.py.\n\nclass Alerter:\n  async def check(self, telegram_id: int, event: str, value: Any = None) -> None — проверка пороговых значений из ALERT_THRESHOLDS\n  def reset(self, telegram_id: int, event: str) -> None — сброс счётчика\n  async def _send_alert(self, text: str) -> None — Telegram → OWNER_TELEGRAM_ID\n\nПороги: consecutive_empty_context=3, consecutive_errors=3, latency_critical_ms=25000, crisis_level_3=1\nПример: await alerter.check(123456, 'crisis_level_3') → мгновенный alert\n\nalerter = Alerter() — синглтон на уровне модуля",
+          "depends_on": ["8.3"],
+          "done": false
+        },
+        {
+          "id": "14.2",
+          "description": "bot/analytics/feedback_collector.py",
+          "agent": "coder-backend",
+          "files": ["bot/analytics/feedback_collector.py"],
+          "contract": "СОЗДАТЬ bot/analytics/feedback_collector.py. 2 функции:\n\nasync def ask_feeling(telegram_id: int, episode_id: int) -> None — inline-кнопки 'Лучше 💛'/'Так же'/'Хуже'. Условия: episode 2+ часов назад, нет feedback, cooldown 8ч, >= 3 msg. Пример: await ask_feeling(123456, episode_id=42)\n\nasync def ask_enactment(telegram_id: int) -> None — inline-кнопки 'Да!'/'Пока нет'. Когда: >= 12ч после обсуждения действия, max 1 раз в день. Текст: 'Ты говорила: «{commitment}». Получилось?'\n\nИспользует: database.create_feedback, database.get_user, Telegram bot.send_message с InlineKeyboardMarkup",
+          "depends_on": ["8.2"],
+          "done": false
+        },
+        {
+          "id": "14.3",
+          "description": "bot/analytics/daily_report.py + weekly_report.py",
+          "agent": "coder-backend",
+          "files": ["bot/analytics/daily_report.py", "bot/analytics/weekly_report.py"],
+          "contract": "СОЗДАТЬ daily_report.py:\nasync def generate_daily_report() -> str — APScheduler job 09:00 MSK. 15 метрик из БД. Отправка → OWNER_TELEGRAM_ID.\nПример: scheduler.add_job(generate_daily_report, 'cron', hour=9, timezone='Europe/Moscow')\n\nСОЗДАТЬ weekly_report.py:\nasync def generate_weekly_report() -> str — APScheduler job вс 12:00 MSK. LLM-анализ (GPT-4o-mini) по одному юзеру за запрос. Анонимизация перед LLM. Сохранение в analytics_weekly.\n\nИспользует: database (все аналитические CRUD), call_gpt, database.save_weekly_report, Telegram bot.send_message",
+          "depends_on": ["8.1", "14.1"],
+          "done": false
+        },
+        {
+          "id": "14.4",
+          "description": "Тесты для аналитики",
+          "agent": "tester",
+          "files": ["tests/unit/test_analytics.py"],
+          "contract": "Тесты: alerter (пороги, reset, _send_alert mock), feedback_collector (условия ask_feeling: cooldown 8ч, >= 3 msg, ask_enactment: >= 12ч), daily_report (15 метрик формируются), weekly_report (анонимизация, LLM mock). Минимум 12 тестов.",
+          "depends_on": ["14.1", "14.2", "14.3"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 15,
       "name": "Webapp: API endpoints + экраны",
       "output": "backend/api.py, webapp/src/pages/",
-      "done": false
+      "done": false,
+      "tasks": [
+        {
+          "id": "15.1",
+          "description": "backend/api.py — новые API endpoints",
+          "agent": "coder-backend",
+          "files": ["backend/api.py"],
+          "contract": "ОБНОВИТЬ backend/api.py. Новые endpoints:\nGET /api/user/profile → {profile, phase}\nGET /api/user/goals → {active_goal, archived_goals}\nGET /api/user/goals/today → {steps_today, completed_today}\nPUT /api/user/goals/steps/:id → {status: 'done'|'skipped'} + owner check\nGET /api/user/calendar → {active_days, streak, total_sessions}\nGET /api/user/affirmation → {text, source: 'bank'|'generated'}\nGET /health → {status, db, uptime}\nPOST /api/analytics/event → 204\n\nRate limit 60/min. Auth: tma ${initData} + HMAC-SHA256. Owner check для PUT.",
+          "depends_on": ["11.2"],
+          "done": false
+        },
+        {
+          "id": "15.2",
+          "description": "webapp/src/pages/ — обновление экранов",
+          "agent": "coder-frontend",
+          "files": ["webapp/src/pages/HomePage.tsx", "webapp/src/pages/ProgressPage.tsx", "webapp/src/pages/ProfilePage.tsx"],
+          "contract": "ОБНОВИТЬ webapp экраны по docs/06_webapp_mockups.md:\n1. HomePage: аффирмация дня + цель + шаги (чекбоксы) + кнопка 'Написать Еве'\n2. ProgressPage: календарь активности + streak + фаза\n3. ProfilePage: карта людей + /forget + /delete_account + дисклеймер\nУбрать: подписку, режимы, стиль, таро. Добавить: deep link Telegram.WebApp.openTelegramLink().\nnpx tsc --noEmit = 0 ошибок.",
+          "depends_on": ["15.1"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 16,
       "name": "Тёмная тема webapp",
       "output": "webapp/src/",
-      "done": false
+      "done": false,
+      "tasks": [
+        {
+          "id": "16.1",
+          "description": "Нативная тёмная тема (CSS-переменные)",
+          "agent": "coder-frontend",
+          "files": ["webapp/src/App.tsx", "webapp/src/index.css"],
+          "contract": "Тёмная тема через CSS-переменные (prefers-color-scheme + Telegram.colorScheme). Контраст #D4466A для текста (WCAG AA). Override ALL vars (--tg-theme-*, --tgui--*) с !important. Не хак, нативная. npx tsc --noEmit = 0.",
+          "depends_on": ["15.2"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 17,
       "name": "Webapp-аналитика",
       "output": "webapp/src/analytics.ts",
-      "done": false
+      "done": false,
+      "tasks": [
+        {
+          "id": "17.1",
+          "description": "webapp/src/analytics.ts — трекинг событий",
+          "agent": "coder-frontend",
+          "files": ["webapp/src/analytics.ts"],
+          "contract": "СОЗДАТЬ webapp/src/analytics.ts:\n\nfunction trackEvent(event: WebappEvent): void\n  — POST /api/analytics/event. Throttle: одинаковые не чаще 2 сек. Fire-and-forget, silent fail.\n  — 8 событий: app_open, page_view, step_complete, step_skip, affirmation_view, write_eva_click, goal_change_click, theme_toggle\n  — Пример: trackEvent({event_type: 'page_view', page: 'home'})\n\nВстроить trackEvent во все страницы. npx tsc --noEmit = 0.",
+          "depends_on": ["15.2"],
+          "done": false
+        }
+      ]
     },
     {
       "step": 18,
@@ -214,7 +547,13 @@
       "done": false
     }
   ],
-  "log": [],
+  "log": [
+    {
+      "date": "2026-03-03",
+      "event": "bug_found",
+      "description": "bot/memory/pattern_detector.py:54 вызывает add_pattern(), но в database.py функция называется add_or_increment_pattern(). Исправить при рефакторе шага 12."
+    }
+  ],
   "errors_since_retro": 0,
   "last_retro": null
 }
