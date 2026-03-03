@@ -1,0 +1,190 @@
+{
+  "version": "2.1",
+  "current": [],
+  "steps": [
+    {
+      "step": 1,
+      "name": "Описать 6 фаз общения Евы",
+      "output": "docs/03_phases.md",
+      "done": true,
+      "completed_at": "2026-03-03"
+    },
+    {
+      "step": 2,
+      "name": "Описать движок диалога",
+      "output": "docs/04_dialog_engine.md",
+      "done": false,
+      "tasks": [
+        {
+          "id": "2.1",
+          "description": "Алгоритм обработки сообщения (14 шагов)",
+          "agent": "lead",
+          "files": ["docs/04_dialog_engine.md"],
+          "contract": "Секция А: 14 шагов от получения сообщения до ответа + idempotency + мьютекс",
+          "depends_on": [],
+          "done": false
+        },
+        {
+          "id": "2.2",
+          "description": "Таблица обрезки контекста + мини/полное обновление + кризис",
+          "agent": "lead",
+          "files": ["docs/04_dialog_engine.md"],
+          "contract": "Секции Б-Е: таблица обрезки (8 строк), мини-обновление (regex), полное обновление (APScheduler), кризис (3 уровня)",
+          "depends_on": ["2.1"],
+          "done": false
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "name": "Написать 20 тестовых сценариев",
+      "output": "docs/05_test_scenarios.md",
+      "done": false,
+      "tasks": [
+        {
+          "id": "3.1",
+          "description": "20 сценариев + рубрика оценки",
+          "agent": "lead",
+          "files": ["docs/05_test_scenarios.md"],
+          "contract": "20 сценариев: 4 знакомство, 3 зеркало, 3 кризис, 3 возвращение, 3 цели, 2 память, 2 edge-case. Формат: категория/фаза/контекст → сообщение → ожидание → антипаттерн. Рубрика 1-5.",
+          "depends_on": [],
+          "done": false
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "name": "Нарисовать экраны приложения",
+      "output": "docs/06_webapp_mockups.md",
+      "done": false,
+      "tasks": [
+        {
+          "id": "4.1",
+          "description": "ASCII-макеты 5 экранов + светлая/тёмная тема",
+          "agent": "lead",
+          "files": ["docs/06_webapp_mockups.md"],
+          "contract": "5 экранов: Сегодня (до целей), Сегодня (с целями), Мой путь, Профиль, Навигация. Обе темы. Действие при нажатии для каждого элемента.",
+          "depends_on": [],
+          "done": false
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "name": "Схема хранения данных (БД)",
+      "output": "bot/memory/database.py",
+      "done": false
+    },
+    {
+      "step": 6,
+      "name": "Контракты модулей",
+      "output": "specs/",
+      "done": false
+    },
+    {
+      "step": 7,
+      "name": "Спецификация промптов (8 штук)",
+      "output": "docs/07_prompts_spec.md",
+      "done": false
+    },
+    {
+      "step": 8,
+      "name": "Фундамент: APScheduler + Pydantic + DB + Config",
+      "output": "shared/models.py, bot/memory/database.py, shared/config.py",
+      "done": false
+    },
+    {
+      "step": 9,
+      "name": "Ядро памяти: profile + episodes + procedural",
+      "output": "bot/memory/",
+      "done": false
+    },
+    {
+      "step": 10,
+      "name": "Контекст и промпт: context_builder + system_prompt + memory_prompts",
+      "output": "bot/memory/context_builder.py, bot/prompts/",
+      "done": false
+    },
+    {
+      "step": 11,
+      "name": "Фазы и цели: phase_evaluator + goal_manager",
+      "output": "bot/prompts/phase_evaluator.py, bot/goal_manager.py",
+      "done": false
+    },
+    {
+      "step": 12,
+      "name": "Главный мотор: session_manager + full_memory_update + handlers",
+      "output": "bot/session_manager.py, bot/handlers.py",
+      "done": false
+    },
+    {
+      "step": 13,
+      "name": "Ева пишет первой: daily_messenger + silence_reminder",
+      "output": "bot/daily_messenger.py",
+      "done": false
+    },
+    {
+      "step": 14,
+      "name": "Аналитика: feedback + alerter + daily/weekly reports",
+      "output": "bot/analytics/",
+      "done": false
+    },
+    {
+      "step": 15,
+      "name": "Webapp: API endpoints + экраны",
+      "output": "backend/api.py, webapp/src/pages/",
+      "done": false
+    },
+    {
+      "step": 16,
+      "name": "Тёмная тема webapp",
+      "output": "webapp/src/",
+      "done": false
+    },
+    {
+      "step": 17,
+      "name": "Webapp-аналитика",
+      "output": "webapp/src/analytics.ts",
+      "done": false
+    },
+    {
+      "step": 18,
+      "name": "E2E тесты (автоматические)",
+      "output": "tests/e2e/",
+      "done": false
+    },
+    {
+      "step": 19,
+      "name": "20 ручных сценариев",
+      "output": "docs/test_results.md",
+      "done": false
+    },
+    {
+      "step": 20,
+      "name": "Стресс-тест",
+      "output": "docs/stress_test_results.md",
+      "done": false
+    },
+    {
+      "step": 21,
+      "name": "Деплой на Railway",
+      "output": "Dockerfile, railway.toml",
+      "done": false
+    },
+    {
+      "step": 22,
+      "name": "Раздать 10 друзьям",
+      "output": "—",
+      "done": false
+    },
+    {
+      "step": 23,
+      "name": "Проверка и калибровка аналитики",
+      "output": "—",
+      "done": false
+    }
+  ],
+  "log": [],
+  "errors_since_retro": 0,
+  "last_retro": null
+}
