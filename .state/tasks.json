@@ -1,6 +1,6 @@
 {
   "version": "2.1",
-  "current": ["11.1"],
+  "current": ["12.1"],
   "steps": [
     {
       "step": 1,
@@ -330,8 +330,18 @@
       "step": 11,
       "name": "Фазы и цели: phase_evaluator + goal_manager",
       "output": "bot/prompts/phase_evaluator.py, bot/goal_manager.py",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-04",
       "tasks": [
+        {
+          "id": "11.0",
+          "description": "Патч database.py (deadline_at в add_goal_step, get_steps_by_deadline, get_overdue_steps) + GOAL_STEPS_PROMPT",
+          "agent": "coder-backend",
+          "files": ["bot/memory/database.py", "bot/prompts/memory_prompts.py"],
+          "depends_on": [],
+          "done": true,
+          "completed_at": "2026-03-04"
+        },
         {
           "id": "11.1",
           "description": "bot/prompts/phase_evaluator.py — оценка фазы (GPT-4o-mini)",
@@ -339,7 +349,8 @@
           "files": ["bot/prompts/phase_evaluator.py"],
           "contract": "СОЗДАТЬ bot/prompts/phase_evaluator.py. 1 функция:\n\nasync def evaluate_phase(telegram_id: int, messages: list[dict]) -> PhaseEvaluation\n  — Вход: telegram_id + последние 10 сообщений. Использует call_gpt + PHASE_EVALUATION_PROMPT.\n  — Выход: PhaseEvaluation(recommendation='advance'|'stay', confidence=0.0-1.0, criteria_met=[...])\n  — Невалидный JSON → 'stay' (безопасный fallback). Timeout → 'stay'.\n  — Пример: eval = await evaluate_phase(123456, recent_10); if eval.recommendation == 'advance' and eval.confidence >= 0.7: advance()\n\nИспользует: call_gpt, get_user (для current_phase), PHASE_EVALUATION_PROMPT",
           "depends_on": ["8.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "11.2",
@@ -348,16 +359,18 @@
           "files": ["bot/goal_manager.py"],
           "contract": "СОЗДАТЬ bot/goal_manager.py. 7 функций:\n\nasync def create_goal(telegram_id: int, title: str) -> Goal — max 1 активная\nasync def generate_steps(goal_id: int, context: str) -> list[GoalStep] — GPT-4o-mini, max 7 шагов\nasync def complete_step(step_id: int) -> GoalStep\nasync def skip_step(step_id: int) -> GoalStep\nasync def get_today_steps(telegram_id: int) -> list[GoalStep] — deadline = today\nasync def get_overdue_steps(telegram_id: int) -> list[GoalStep] — pending AND deadline < now - 1h\nasync def archive_goal(goal_id: int) -> Goal\n\nОшибки:\n- create_goal при наличии активной цели → raise ValueError('User already has an active goal')\n- generate_steps: LLMError → вернуть пустой список []. Невалидный JSON → пустой список []\n- complete_step/skip_step с несуществующим step_id → raise ValueError('Step not found')\n- archive_goal с несуществующим goal_id → raise ValueError('Goal not found')\n- DB ошибка → raise\n\nПример: goal = await create_goal(123456, 'Поговорить с мамой'); steps = await generate_steps(goal.id, context='Маша, 32, конфликт...')\nИспользует: database.create_goal, database.get_active_goal, database.add_goal_step, database.update_step_status, database.update_goal_status, call_gpt",
           "depends_on": ["8.1", "8.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "11.3",
-          "description": "Тесты для phase_evaluator и goal_manager",
+          "description": "Тесты для phase_evaluator и goal_manager (19 тестов, все зелёные)",
           "agent": "tester",
           "files": ["tests/unit/test_phase_evaluator.py", "tests/unit/test_goal_manager.py"],
           "contract": "Тесты: phase_evaluator (advance с confidence >= 0.7, stay при низком confidence, невалидный JSON → stay, timeout → stay), goal_manager (create, max 1 активная, generate_steps max 7, complete/skip, today/overdue, archive). Mock LLM. Минимум 15 тестов.",
           "depends_on": ["11.1", "11.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         }
       ]
     },
@@ -631,6 +644,21 @@
       "description": "CRITIC-2 шаг 9 завершён. Найдено: 2×P1 (broad except) → FIXED. Остальное чисто: rollback версия ОК, промпты ОК, database ОК. 114 тестов зелёные."
     }
   ],
-  "errors_since_retro": 0,
+      {
+      "date": "2026-03-04",
+      "task_id": "11.3",
+      "agent": "tester",
+      "event": "critic_p1",
+      "tag": "missing_test",
+      "description": "test_skip_step_not_found отсутствовал (симметрично test_complete_step_not_found). FIXED."
+    },
+    {
+      "date": "2026-03-04",
+      "task_id": "11.0-11.3",
+      "event": "critic_pass",
+      "description": "CRITIC-2 шаг 11 завершён. Найдено: 1×P1 (missing test) → FIXED, 2×P2 (import _now, implicit str→datetime) → SKIP. 158 тестов зелёные."
+    }
+  ],
+  "errors_since_retro": 1,
   "last_retro": "2026-03-03"
 }

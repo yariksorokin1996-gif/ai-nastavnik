@@ -1,7 +1,7 @@
 # AI Наставник — STATE.md
 
 ## Фаза: АРХИТЕКТУРА (Фаза 2)
-## Подэтап: Шаги 0-10 завершены. Следующий: шаг 11 (фазы и цели — phase_evaluator + goal_manager)
+## Подэтап: Шаги 0-11 завершены. Следующий: шаг 12 (session_manager + full_memory_update + handlers)
 
 ## ТЗ
 MVP тестируем на **10 друзьях**. Без подписки. Webapp включён. Тёмная тема включена.
@@ -243,6 +243,29 @@ specs/
 - ✅ **135 тестов всего** — 41 database + 36 shared + 37 memory + 21 context/prompt, все зелёные (4.3с)
 - ✅ **CRITIC-2:** PASS (0 P0, 0 P1, 5 P2 — все SKIP для MVP)
 
+### Жёсткий аудит шага 10 + протокол UX (сессия 04.03.2026)
+- ✅ **Аудит нашёл**: P0 (нет fallback procedural), P1 (тупая обрезка profile), P1 (мелкие тесты)
+- ✅ **Протокол «Глазами пользователя»** — 2-уровневый:
+  - Универсальное правило в CLAUDE.md + промптах 4 агентов (coder-backend, coder-frontend, tester, critic)
+  - Проектные персоны в `docs/user_scenarios.md` (Маша/Аня/Лена)
+  - Лид копирует сценарии в контракт каждой user-facing задачи
+  - Чеклист А (план): пункт 8 — «есть секция Сценарии?»
+  - Чеклист Д (critic): проверка fallback/полноты/паузы
+  - agplan.md: шаг g-bis + секция 5.4
+- ✅ **P0 исправлен**: `_FALLBACK_PROCEDURAL` для новых юзеров
+- ✅ **P1 исправлен**: структурная обрезка profile (strengths/achievements первыми)
+- ✅ **+4 теста**: procedural fallback, обрезка profile, пауза, commitments
+- ✅ **139 тестов всего**, все зелёные
+
+### Шаг 11: Фазы и цели (сессия 04.03.2026)
+- ✅ **database.py патч** — add_goal_step + deadline_at, get_steps_by_deadline, get_overdue_steps
+- ✅ **memory_prompts.py дополнен** — GOAL_STEPS_PROMPT (экранирован для .format())
+- ✅ **phase_evaluator.py создан** — evaluate_phase (GPT-4o-mini), fallback='stay', РИТМ без LLM (~136 строк)
+- ✅ **goal_manager.py создан** — 7 функций: create/generate_steps/complete/skip/today/overdue/archive (~214 строк)
+- ✅ **19 тестов** (6 phase_evaluator + 13 goal_manager), все зелёные
+- ✅ **158 тестов всего** — 41 database + 36 shared + 37 memory + 21 context/prompt + 6 phase + 13 goal + 4 доп., все зелёные (4.6с)
+- ✅ **CRITIC-2:** PASS (0 P0, 1 P1 → FIXED, 2 P2 → SKIP)
+
 ## Следующие шаги
 
 1. ~~**Шаг 0:** Инфраструктура агентов~~ ✅
@@ -255,9 +278,10 @@ specs/
 8. ~~**Шаг 7:** Спецификация промптов (10 штук)~~ ✅
 9. ~~**Шаг 8:** Фундамент — LLM-обёртка + Pydantic-модели + Config~~ ✅
 10. ~~**Шаг 9:** Ядро памяти — profile + episodes + procedural~~ ✅ (CRITIC-2 пройден)
-11. ~~**Шаг 10:** Контекст и промпт — context_builder + system_prompt + memory_prompts~~ ✅ (CRITIC-2 пройден)
-12. **Шаг 11:** Фазы и цели — phase_evaluator + goal_manager ← СЛЕДУЮЩИЙ
-13. После шага 11 → шаг 12 (session_manager + handlers)
+11. ~~**Шаг 10:** Контекст и промпт — context_builder + system_prompt + memory_prompts~~ ✅ (CRITIC-2 + аудит)
+12. ~~**Шаг 11:** Фазы и цели — phase_evaluator + goal_manager~~ ✅ (CRITIC-2 пройден)
+13. **Шаг 12:** Главный мотор — session_manager + full_memory_update + handlers ← СЛЕДУЮЩИЙ
+14. После шага 12 → шаг 13 (daily_messenger)
 
 ## Нерешённые вопросы
 Нет. Все стоп-факторы из аудита закрыты.

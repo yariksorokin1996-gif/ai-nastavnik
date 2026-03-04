@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS episodes (
     emotional_tone TEXT,
     key_insight TEXT,
     commitments_json TEXT DEFAULT '[]',
+    techniques_worked_json TEXT DEFAULT '[]',
+    techniques_failed_json TEXT DEFAULT '[]',
     messages_count INTEGER NOT NULL DEFAULT 0,
     session_start TEXT NOT NULL,
     session_end TEXT NOT NULL,
@@ -511,6 +513,19 @@ async def upsert_profile(telegram_id: int, profile_json: dict, tokens_count: int
     logger.info("upsert_profile: user=%s version=%d", telegram_id, new_version)
 
 
+async def get_profile_version(telegram_id: int, version: int) -> Optional[dict]:
+    """Получить конкретную версию профиля из profile_versions."""
+    async with get_db() as db:
+        async with db.execute(
+            "SELECT profile_json FROM profile_versions WHERE telegram_id = ? AND version = ?",
+            (telegram_id, version),
+        ) as cur:
+            row = await cur.fetchone()
+            if not row:
+                return None
+            return _parse_json(row[0])
+
+
 # ---------------------------------------------------------------------------
 # CRUD — Episodes
 # ---------------------------------------------------------------------------
@@ -523,6 +538,8 @@ async def create_episode(
     emotional_tone: str = None,
     key_insight: str = None,
     commitments_json: list = None,
+    techniques_worked_json: list = None,
+    techniques_failed_json: list = None,
     messages_count: int = 0,
     session_start: str = None,
     session_end: str = None,
@@ -533,12 +550,16 @@ async def create_episode(
         cur = await db.execute(
             """INSERT INTO episodes
                (telegram_id, title, summary, emotional_tone, key_insight,
-                commitments_json, messages_count, session_start, session_end,
+                commitments_json, techniques_worked_json, techniques_failed_json,
+                messages_count, session_start, session_end,
                 tokens_count, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 telegram_id, title, summary, emotional_tone, key_insight,
-                _to_json(commitments_json or []), messages_count,
+                _to_json(commitments_json or []),
+                _to_json(techniques_worked_json or []),
+                _to_json(techniques_failed_json or []),
+                messages_count,
                 session_start or now, session_end or now,
                 tokens_count, now,
             ),
@@ -573,6 +594,8 @@ async def get_episodes_by_ids(ids: list[int]) -> list[dict]:
             for r in rows:
                 d = dict(r)
                 d["commitments_json"] = _parse_json(d.get("commitments_json"), [])
+                d["techniques_worked_json"] = _parse_json(d.get("techniques_worked_json"), [])
+                d["techniques_failed_json"] = _parse_json(d.get("techniques_failed_json"), [])
                 results.append(d)
             return results
 
@@ -802,13 +825,14 @@ async def add_goal_step(
     telegram_id: int,
     title: str,
     sort_order: int = 0,
+    deadline_at: str = None,
 ) -> int:
     async with get_db() as db:
         cur = await db.execute(
             """INSERT INTO goal_steps
-               (goal_id, telegram_id, title, sort_order, created_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (goal_id, telegram_id, title, sort_order, _now()),
+               (goal_id, telegram_id, title, sort_order, deadline_at, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (goal_id, telegram_id, title, sort_order, deadline_at, _now()),
         )
         await db.commit()
         return cur.lastrowid
@@ -836,6 +860,31 @@ async def get_goal_steps(goal_id: int) -> list[dict]:
                WHERE goal_id = ?
                ORDER BY sort_order ASC""",
             (goal_id,),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+
+async def get_steps_by_deadline(telegram_id: int, date_str: str) -> list[dict]:
+    """Шаги с deadline_at на указанную дату. date_str формат: 'YYYY-MM-DD'."""
+    async with get_db() as db:
+        async with db.execute(
+            """SELECT * FROM goal_steps
+               WHERE telegram_id = ? AND date(deadline_at) = ? AND status = 'pending'
+               ORDER BY sort_order ASC""",
+            (telegram_id, date_str),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+
+async def get_overdue_steps(telegram_id: int) -> list[dict]:
+    """Просроченные шаги: pending AND deadline < now - 1 hour."""
+    async with get_db() as db:
+        async with db.execute(
+            """SELECT * FROM goal_steps
+               WHERE telegram_id = ? AND status = 'pending'
+                 AND deadline_at < datetime('now', '-1 hour')
+               ORDER BY deadline_at ASC""",
+            (telegram_id,),
         ) as cur:
             return [dict(r) for r in await cur.fetchall()]
 
