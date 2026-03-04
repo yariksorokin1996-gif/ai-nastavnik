@@ -1,7 +1,7 @@
 # AI Наставник — STATE.md
 
 ## Фаза: АРХИТЕКТУРА (Фаза 2)
-## Подэтап: Шаги 0-8 завершены. Следующий: шаг 9 (ядро памяти — profile + episodes + procedural)
+## Подэтап: Шаги 0-10 завершены. Следующий: шаг 11 (фазы и цели — phase_evaluator + goal_manager)
 
 ## ТЗ
 MVP тестируем на **10 друзьях**. Без подписки. Webapp включён. Тёмная тема включена.
@@ -224,6 +224,25 @@ specs/
 | 19 | Feedback НЕ one-shot jobs (устойчиво к рестарту) |
 | 20 | Аналитика собирается в Фазе 3-4, шаг 23 = проверка |
 
+### Шаг 9: Ядро памяти (сессия 03.03.2026)
+- ✅ **database.py патч** — get_profile_version + techniques_worked/failed в episodes
+- ✅ **profile_manager.py** — 5 функций (create, get, update с diff, rollback, as_text ≤1000 tok)
+- ✅ **episode_manager.py** — 3 функции (create с GPT, find_relevant с LLM + keyword fallback, titles)
+- ✅ **procedural_memory.py** — 3 функции (get, update merge, as_text ≤300 tok)
+- ✅ **memory_prompts.py** — EPISODE_SUMMARY_PROMPT + EPISODE_SELECTION_PROMPT
+- ✅ **74 теста шага 9** (31 profile + 22 episode + 21 procedural), все зелёные
+- ✅ **114 тестов всего** — 41 database + 36 shared + 37 memory, все зелёные (4.3с)
+- ✅ **CRITIC-2 шага 9:** 2×P1 (broad except) → FIXED. Остальное чисто.
+- ✅ **Баг исправлен:** EPISODE_SELECTION_PROMPT — фигурные скобки экранированы для .format()
+
+### Шаг 10: Контекст и промпт (сессия 04.03.2026)
+- ✅ **system_prompt.py переписан** — убран «Алекс» (grep=0), промпт Евы + 6 фаз (~120 строк)
+- ✅ **memory_prompts.py дополнен** — PROFILE_UPDATE_PROMPT + PHASE_EVALUATION_PROMPT + PHASE_TRANSITION_CRITERIA
+- ✅ **context_builder.py переписан** — 7 секций, бюджет 3800, обрезка по 6 приоритетам, asyncio.gather, _safe_call (~277 строк)
+- ✅ **21 тест** (13 system_prompt + 8 context_builder), все зелёные
+- ✅ **135 тестов всего** — 41 database + 36 shared + 37 memory + 21 context/prompt, все зелёные (4.3с)
+- ✅ **CRITIC-2:** PASS (0 P0, 0 P1, 5 P2 — все SKIP для MVP)
+
 ## Следующие шаги
 
 1. ~~**Шаг 0:** Инфраструктура агентов~~ ✅
@@ -235,8 +254,10 @@ specs/
 7. ~~**Шаг 6:** Контракты модулей (specs/)~~ ✅
 8. ~~**Шаг 7:** Спецификация промптов (10 штук)~~ ✅
 9. ~~**Шаг 8:** Фундамент — LLM-обёртка + Pydantic-модели + Config~~ ✅
-10. **Шаг 9:** Ядро памяти — profile_manager + episode_manager + procedural_memory ← СЛЕДУЮЩИЙ
-11. После шага 9 → шаги 10+ (контекст, фазы, session_manager...)
+10. ~~**Шаг 9:** Ядро памяти — profile + episodes + procedural~~ ✅ (CRITIC-2 пройден)
+11. ~~**Шаг 10:** Контекст и промпт — context_builder + system_prompt + memory_prompts~~ ✅ (CRITIC-2 пройден)
+12. **Шаг 11:** Фазы и цели — phase_evaluator + goal_manager ← СЛЕДУЮЩИЙ
+13. После шага 11 → шаг 12 (session_manager + handlers)
 
 ## Нерешённые вопросы
 Нет. Все стоп-факторы из аудита закрыты.

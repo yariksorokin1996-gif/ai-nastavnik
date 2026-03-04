@@ -1,6 +1,6 @@
 {
   "version": "2.1",
-  "current": [],
+  "current": ["11.1"],
   "steps": [
     {
       "step": 1,
@@ -222,8 +222,19 @@
       "step": 9,
       "name": "Ядро памяти: profile + episodes + procedural",
       "output": "bot/memory/",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-03",
       "tasks": [
+        {
+          "id": "9.0",
+          "description": "Патч database.py: get_profile_version + techniques в episodes",
+          "agent": "coder-backend",
+          "files": ["bot/memory/database.py"],
+          "contract": "ОБНОВИТЬ bot/memory/database.py:\n\n1. ДОБАВИТЬ функцию:\nasync def get_profile_version(telegram_id: int, version: int) -> Optional[dict]\n  — SELECT profile_json FROM profile_versions WHERE telegram_id=? AND version=?\n  — Парсить profile_json через _parse_json(). Return None если не найдена.\n\n2. ДОБАВИТЬ 2 столбца в DDL (CREATE TABLE episodes):\n  techniques_worked_json TEXT DEFAULT '[]',\n  techniques_failed_json TEXT DEFAULT '[]',\n  (после commitments_json, перед messages_count)\n\n3. ОБНОВИТЬ create_episode():\n  — Добавить параметры: techniques_worked_json: list = None, techniques_failed_json: list = None\n  — Дефолт: [] если None\n  — Включить в INSERT SQL\n\n4. ОБНОВИТЬ get_episodes_by_ids():\n  — Парсить techniques_worked_json и techniques_failed_json через _parse_json(d.get(...), [])\n\nОшибки: DB ошибка → raise. get_profile_version с несуществующей версией → return None.",
+          "depends_on": [],
+          "done": true,
+          "completed_at": "2026-03-03"
+        },
         {
           "id": "9.1",
           "description": "bot/memory/profile_manager.py — управление семантическим профилем",
@@ -231,7 +242,8 @@
           "files": ["bot/memory/profile_manager.py"],
           "contract": "СОЗДАТЬ bot/memory/profile_manager.py. 5 функций:\n\nasync def create_empty_profile(telegram_id: int) -> SemanticProfile — пустой профиль для нового юзера\nasync def get_profile(telegram_id: int) -> SemanticProfile | None — из БД, Pydantic валидация\nasync def update_profile(telegram_id: int, diff: ProfileDiff) -> SemanticProfile — diff-обновление, version++, сохраняет в profile_versions\nasync def rollback_profile(telegram_id: int, version: int) -> SemanticProfile — откат\nasync def get_profile_as_text(telegram_id: int) -> str — ≤1000 токенов, формат '=== ПРОФИЛЬ ===\\n...'\n\nОшибки:\n- DB ошибка (aiosqlite.Error) → raise (не глотать)\n- JSON parse ошибка (profile_json из БД) → logger.error + вернуть None\n- rollback_profile с несуществующей версией → raise ValueError('Version X not found')\n- update_profile с пустым diff → no-op, вернуть текущий профиль без version++\n\nПример: profile = await get_profile(123456); text = await get_profile_as_text(123456)\nИспользует: database.get_profile, database.upsert_profile. Уровни уверенности: high/medium/low. Карта людей в people[].",
           "depends_on": ["8.1", "8.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         },
         {
           "id": "9.2",
@@ -240,7 +252,8 @@
           "files": ["bot/memory/episode_manager.py"],
           "contract": "СОЗДАТЬ bot/memory/episode_manager.py. 3 функции:\n\nasync def create_episode(telegram_id: int, messages: list[dict]) -> Episode — GPT-4o-mini, JSON: title/summary/emotional_tone/key_insight/commitments/techniques. Использует call_gpt + EPISODE_SUMMARY_PROMPT\nasync def find_relevant_episodes(telegram_id: int, current_message: str, limit: int = 3) -> list[Episode] — GPT-4o-mini по заголовкам, fallback: keyword search. Использует database.get_episode_headers + database.get_episodes_by_ids\nasync def get_episode_titles(telegram_id: int) -> list[str]\n\nОшибки:\n- LLMError в create_episode → retry встроен в call_gpt. Если всё равно fail → raise LLMError (вызывающий код решает)\n- Невалидный JSON от LLM в create_episode → пустой Episode(title='Разговор', summary='', ...)\n- LLMError в find_relevant_episodes → keyword fallback (поиск по заголовкам без LLM)\n- Пустой список messages → вернуть Episode с title='Пустой разговор'\n\nПример: episodes = await find_relevant_episodes(123456, 'поругалась с мамой', limit=3)\nИспользует: database.create_episode, database.get_episode_headers, database.get_episodes_by_ids, shared.llm_client.call_gpt",
           "depends_on": ["8.1", "8.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         },
         {
           "id": "9.3",
@@ -249,7 +262,8 @@
           "files": ["bot/memory/procedural_memory.py"],
           "contract": "СОЗДАТЬ bot/memory/procedural_memory.py. 3 функции:\n\nasync def get_procedural(telegram_id: int) -> ProceduralMemory | None\nasync def update_procedural(telegram_id: int, updates: dict) -> ProceduralMemory — merge what_works/what_doesnt (не перезапись)\nasync def get_procedural_as_text(telegram_id: int) -> str — ≤300 токенов, формат '=== КАК С НЕЙ РАБОТАТЬ ===\\n✅ Работает:...\\n❌ Не работает:...'\n\nОшибки:\n- DB ошибка → raise (не глотать)\n- Пустой updates (нет what_works и what_doesnt) → no-op, вернуть текущее состояние\n- Юзер без процедурной памяти (None) → get_procedural_as_text возвращает пустую строку ''\n\nПример: text = await get_procedural_as_text(123456)\nИспользует: database.get_procedural, database.upsert_procedural",
           "depends_on": ["8.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         },
         {
           "id": "9.4",
@@ -258,7 +272,8 @@
           "files": ["tests/unit/test_profile_manager.py", "tests/unit/test_episode_manager.py", "tests/unit/test_procedural_memory.py"],
           "contract": "Тесты: profile_manager (create, get, update с diff, rollback, as_text ≤1000 tok, version++), episode_manager (create с mock LLM, find_relevant с mock, keyword fallback), procedural (get, update merge, as_text ≤300 tok). Mock LLM. Минимум 20 тестов.",
           "depends_on": ["9.1", "9.2", "9.3"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-03"
         }
       ]
     },
@@ -266,43 +281,48 @@
       "step": 10,
       "name": "Контекст и промпт: context_builder + system_prompt + memory_prompts",
       "output": "bot/memory/context_builder.py, bot/prompts/",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-04",
       "tasks": [
         {
           "id": "10.1",
           "description": "bot/memory/context_builder.py — сборка контекста (ПЕРЕПИСАТЬ)",
           "agent": "coder-backend",
           "files": ["bot/memory/context_builder.py"],
-          "contract": "ПЕРЕПИСАТЬ bot/memory/context_builder.py (13 строк → ~200). По specs/context_builder_spec.md:\n\nasync def build_context(telegram_id: int, current_message: str) -> tuple[str, int, ContextMeta]\n\n8 переменных, обрезка по 8 приоритетам, бюджет 3800 токенов. _safe_call обёртка. asyncio.gather для параллельных запросов. _estimate_tokens (3.3 tok/слово). Fallback для пустых переменных. Порядок сборки: base_prompt первым (для prompt caching).",
+          "contract": "ПЕРЕПИСАТЬ bot/memory/context_builder.py (13 строк → ~200). По specs/context_builder_spec.md:\n\nasync def build_context(telegram_id: int, current_message: str) -> tuple[str, int, ContextMeta]\n\n7 секций, обрезка по 6 приоритетам, бюджет 3800 токенов. _safe_call обёртка. asyncio.gather для параллельных запросов. _estimate_tokens (3.3 tok/слово). Fallback для пустых переменных. Порядок сборки: base_prompt первым (для prompt caching).",
           "depends_on": ["9.1", "9.2", "9.3"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "10.2",
           "description": "bot/prompts/system_prompt.py — базовый промпт Евы (ПЕРЕПИСАТЬ)",
           "agent": "coder-backend",
           "files": ["bot/prompts/system_prompt.py"],
-          "contract": "ПЕРЕПИСАТЬ bot/prompts/system_prompt.py (299 строк → ~100). Удалить ВСЁ про «Алекса», 5 старых фаз, 3 стиля.\n\ndef build_system_prompt(current_phase: str) -> str — собирает базовый промпт из docs/02_prompts.md + фазовую инструкцию.\n\nBASE_PROMPT — текст из docs/02_prompts.md (Ева, тёплая подруга). PHASE_DESCRIPTIONS — 6 фаз (ЗНАКОМСТВО, ЗЕРКАЛО, НАСТРОЙКА, ПОРТРЕТ, ЦЕЛЬ, РИТМ). Защита от prompt injection. grep 'Алекс' = 0.",
+          "contract": "ПЕРЕПИСАТЬ bot/prompts/system_prompt.py (299 строк → ~120). Удалить ВСЁ про «Алекса», 5 старых фаз, 3 стиля.\n\ndef build_system_prompt(current_phase: str) -> str — собирает базовый промпт из docs/02_prompts.md + фазовую инструкцию.\n\nBASE_PROMPT — текст из docs/02_prompts.md (Ева, тёплая подруга). PHASE_DESCRIPTIONS — 6 фаз (ЗНАКОМСТВО, ЗЕРКАЛО, НАСТРОЙКА, ПОРТРЕТ, ЦЕЛЬ, РИТМ). grep 'Алекс' = 0.",
           "depends_on": [],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "10.3",
-          "description": "bot/prompts/memory_prompts.py — промпты для LLM-задач памяти",
+          "description": "bot/prompts/memory_prompts.py — дополнить промптами",
           "agent": "coder-backend",
           "files": ["bot/prompts/memory_prompts.py"],
-          "contract": "СОЗДАТЬ bot/prompts/memory_prompts.py. Константы:\n\nEPISODE_SUMMARY_PROMPT — промпт для create_episode (GPT-4o-mini, JSON output: title/summary/emotional_tone/key_insight/commitments/techniques)\nPROFILE_UPDATE_PROMPT — промпт для update_profile в full_memory_update (GPT-4o-mini, JSON diff: set_fields/add_to_lists)\nEPISODE_SELECTION_PROMPT — промпт для find_relevant_episodes (GPT-4o-mini, выбор 2-3 из заголовков)\nPHASE_EVALUATION_PROMPT — промпт для evaluate_phase (GPT-4o-mini, JSON: recommendation/confidence/criteria_met)\n\nВсе промпты на русском. Формат: response_format=json_object.",
+          "contract": "ДОПОЛНИТЬ bot/prompts/memory_prompts.py. Добавлены:\nPROFILE_UPDATE_PROMPT — промпт для update_profile (GPT-4o-mini, JSON diff)\nPHASE_EVALUATION_PROMPT — промпт для evaluate_phase (GPT-4o-mini, JSON)\nPHASE_TRANSITION_CRITERIA — dict с 6 фазами",
           "depends_on": [],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "10.4",
-          "description": "Тесты для context_builder и промптов",
+          "description": "Тесты для context_builder и промптов (21 тест)",
           "agent": "tester",
           "files": ["tests/unit/test_context_builder.py", "tests/unit/test_system_prompt.py"],
-          "contract": "Тесты: context_builder (новый юзер ~1550 tok, активный ~3800, обрезка по приоритетам, _safe_call при ошибках, пустые переменные → fallback, ContextMeta корректна), system_prompt (build_system_prompt для каждой из 6 фаз, grep 'Алекс' = 0, grep 'Ева' > 0). Mock зависимости. Минимум 15 тестов.",
+          "contract": "21 тест: 13 system_prompt (6 фаз, no alex, has eva, fallback, sync, 3 промпта) + 8 context_builder (new user, active user, truncation, safe_call, ValueError, base first, meta, fallback).",
           "depends_on": ["10.1", "10.2", "10.3"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         }
       ]
     },
@@ -595,6 +615,20 @@
       "date": "2026-03-03",
       "event": "retro",
       "description": "Ретроспектива шаг 8: паттерн — coder-backend не сверяется с первоисточником (plan.md). Уроки: coder-backend (2), tester (1)."
+    },
+    {
+      "date": "2026-03-03",
+      "task_id": "9.0-9.4",
+      "agent": "coder-backend",
+      "event": "critic_p1",
+      "tag": "broad_except",
+      "description": "CRITIC-2 шаг 9: except Exception в profile_manager.py:114 и procedural_memory.py:60 — заменены на (TypeError, ValidationError). FIXED."
+    },
+    {
+      "date": "2026-03-03",
+      "task_id": "9.0-9.4",
+      "event": "critic_pass",
+      "description": "CRITIC-2 шаг 9 завершён. Найдено: 2×P1 (broad except) → FIXED. Остальное чисто: rollback версия ОК, промпты ОК, database ОК. 114 тестов зелёные."
     }
   ],
   "errors_since_retro": 0,
