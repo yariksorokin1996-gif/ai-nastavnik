@@ -25,6 +25,7 @@ from shared.models import ContextMeta, Episode
 logger = logging.getLogger(__name__)
 
 _FALLBACK_PROFILE = "=== ПРОФИЛЬ ===\nНовый пользователь. Информации пока нет. Наблюдай."
+_FALLBACK_PROCEDURAL = "=== КАК С НЕЙ РАБОТАТЬ ===\nСтиль не определён. Наблюдай и подстраивайся."
 
 
 # ---------------------------------------------------------------------------
@@ -162,10 +163,17 @@ def _truncate_context(
         sections["episodes"] = _format_episodes(raw_episodes, limit=2)
         truncated.append("episodes")
 
-    # Приоритет 5: profile — обрезать строки с конца до ~700 токенов
+    # Приоритет 5: profile — структурная обрезка (сначала strengths/achievements, потом с конца)
     if _total() > TOKEN_BUDGET_SOFT and sections.get("profile"):
         lines = sections["profile"].split("\n")
-        while _estimate_tokens("\n".join(lines)) > 700 and len(lines) > 2:
+        # Сначала убрать менее важные секции (сильные стороны, достижения)
+        low_priority = ("сильные стороны", "достижения", "strengths", "achievements")
+        lines = [
+            ln for ln in lines
+            if not any(kw in ln.lower() for kw in low_priority)
+        ]
+        # Если всё ещё большой — обрезать с конца, сохраняя заголовок + первые строки
+        while _estimate_tokens("\n".join(lines)) > 700 and len(lines) > 3:
             lines.pop()
         sections["profile"] = "\n".join(lines)
         truncated.append("profile")
@@ -223,7 +231,7 @@ async def build_context(
     sections["base_prompt"] = base_prompt
 
     sections["profile"] = profile_text if profile_text else _FALLBACK_PROFILE
-    sections["procedural"] = procedural_text if procedural_text else ""
+    sections["procedural"] = procedural_text if procedural_text else _FALLBACK_PROCEDURAL
     sections["episodes"] = _format_episodes(episodes or [], limit=3)
     sections["patterns"] = _format_patterns(patterns or [], limit=5)
     sections["commitments"] = _format_commitments(goal, steps)

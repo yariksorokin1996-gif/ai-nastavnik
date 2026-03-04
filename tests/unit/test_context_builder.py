@@ -1,4 +1,4 @@
-"""Тесты для bot/memory/context_builder.py. 8 тестов."""
+"""Тесты для bot/memory/context_builder.py. 12 тестов."""
 
 import os
 import sys
@@ -104,6 +104,119 @@ async def test_new_user_basic(mock_db, mock_prof, mock_eps, mock_proc, mock_bsp)
     assert meta.was_truncated is False
     assert "Новый пользователь" in prompt
     assert token_count > 0
+
+
+@pytest.mark.asyncio
+@patch("bot.memory.context_builder.build_system_prompt")
+@patch("bot.memory.context_builder.get_procedural_as_text", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.find_relevant_episodes", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.get_profile_as_text", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.database")
+async def test_new_user_procedural_fallback(
+    mock_db, mock_prof, mock_eps, mock_proc, mock_bsp,
+):
+    """Новый юзер: procedural пуст -> fallback 'Стиль не определён' в промпте."""
+    mock_db.get_user = AsyncMock(return_value=_BASE_USER.copy())
+    mock_db.get_patterns = AsyncMock(return_value=[])
+    mock_db.get_active_goal = AsyncMock(return_value=None)
+    mock_prof.return_value = ""
+    mock_eps.return_value = []
+    mock_proc.return_value = ""
+    mock_bsp.return_value = "Ты — Ева. ЗНАКОМСТВО"
+
+    from bot.memory.context_builder import build_context
+
+    prompt, _, meta = await build_context(111, "Привет")
+
+    assert "Стиль не определён" in prompt
+    assert "procedural" in meta.filled_vars
+
+
+@pytest.mark.asyncio
+async def test_profile_truncation_removes_strengths_first():
+    """Обрезка profile: строки с 'сильные стороны'/'достижения' убираются первыми."""
+    from bot.memory.context_builder import _truncate_context
+
+    profile_lines = [
+        "=== ПРОФИЛЬ ===",
+        "Имя: Маша",
+        "Возраст: 28",
+        "Сильные стороны: эмпатия, чуткость",
+        "Достижения: повышение на работе",
+        "Страхи: отказ, конфликт",
+    ]
+    sections = {
+        "base_prompt": "Ты — Ева. " * 500,
+        "profile": "\n".join(profile_lines),
+        "procedural": "Работает: рефлексия " * 100,
+        "episodes": "Разговор про работу " * 200,
+        "patterns": "Избегает конфликтов " * 100,
+        "commitments": "Научиться говорить нет " * 50,
+        "pause_context": "",
+    }
+
+    _truncate_context(sections, _SAMPLE_EPISODES, _SAMPLE_PATTERNS, _SAMPLE_GOAL, _SAMPLE_STEPS)
+
+    assert "Сильные стороны" not in sections["profile"]
+    assert "Достижения" not in sections["profile"]
+    assert "Имя: Маша" in sections["profile"]
+
+
+@pytest.mark.asyncio
+@patch("bot.memory.context_builder.build_system_prompt")
+@patch("bot.memory.context_builder.get_procedural_as_text", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.find_relevant_episodes", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.get_profile_as_text", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.database")
+async def test_returning_user_pause_in_prompt(
+    mock_db, mock_prof, mock_eps, mock_proc, mock_bsp,
+):
+    """Вернувшийся юзер (пауза > 24ч): 'Пауза' в промпте и pause_context в filled_vars."""
+    user = _ACTIVE_USER.copy()
+    user["last_message_at"] = "2026-02-25 10:00:00"
+    mock_db.get_user = AsyncMock(return_value=user)
+    mock_db.get_patterns = AsyncMock(return_value=[])
+    mock_db.get_active_goal = AsyncMock(return_value=None)
+    mock_prof.return_value = "=== ПРОФИЛЬ ===\nИмя: Лена"
+    mock_eps.return_value = []
+    mock_proc.return_value = ""
+    mock_bsp.return_value = "Ты — Ева. ЗЕРКАЛО"
+
+    from bot.memory.context_builder import build_context
+
+    prompt, _, meta = await build_context(222, "Я всё провалила")
+
+    assert "Пауза" in prompt
+    assert "дн." in prompt
+    assert "pause_context" in meta.filled_vars
+
+
+@pytest.mark.asyncio
+async def test_truncation_commitments_only_pending():
+    """Обрезка приоритет 2: commitments обрезается до pending-шагов."""
+    from bot.memory.context_builder import _truncate_context
+
+    goal = {"id": 1, "title": "Цель"}
+    steps = [
+        {"title": "Шаг выполнен", "status": "completed", "deadline_at": None},
+        {"title": "Шаг в работе", "status": "pending", "deadline_at": None},
+    ]
+
+    sections = {
+        "base_prompt": "Ты — Ева. " * 500,
+        "profile": "Профиль " * 200,
+        "procedural": "Процедурная " * 100,
+        "episodes": "Эпизоды " * 200,
+        "patterns": "Паттерны " * 100,
+        "commitments": "=== ТЕКУЩАЯ ЦЕЛЬ ===\nЦель\n☑ Шаг выполнен\n☐ Шаг в работе",
+        "pause_context": "",
+    }
+
+    truncated = _truncate_context(sections, _SAMPLE_EPISODES, _SAMPLE_PATTERNS, goal, steps)
+
+    assert "commitments" in truncated
+    assert "Шаг выполнен" not in sections["commitments"]
+    assert "Шаг в работе" in sections["commitments"]
 
 
 @pytest.mark.asyncio
