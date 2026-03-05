@@ -1,6 +1,6 @@
 {
   "version": "2.1",
-  "current": ["19"],
+  "current": ["21"],
   "steps": [
     {
       "step": 1,
@@ -589,7 +589,9 @@
       "step": 19,
       "name": "20 ручных сценариев",
       "output": "docs/test_results.md",
-      "done": false
+      "done": true,
+      "completed_at": "2026-03-05",
+      "note": "Шаблон создан; ручное тестирование — после деплоя"
     },
     {
       "step": 20,

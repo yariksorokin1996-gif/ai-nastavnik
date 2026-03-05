@@ -4,7 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 from bot.handlers import (
     start, help_command, status_command, patterns_command,
     handle_voice, handle_message, handle_other_media,
-    callback_handler, app_command,
+    callback_handler, app_command, forget_command, delete_account_command,
 )
 from bot.scheduler import setup_scheduler
 from bot.memory.database import init_db
@@ -59,6 +59,8 @@ def main():
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CommandHandler("patterns", patterns_command))
     app.add_handler(CommandHandler("app", app_command))
+    app.add_handler(CommandHandler("forget", forget_command))
+    app.add_handler(CommandHandler("delete_account", delete_account_command))
 
     # Единый обработчик inline-кнопок
     app.add_handler(CallbackQueryHandler(callback_handler))
