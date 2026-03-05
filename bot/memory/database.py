@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS daily_messages (
     telegram_id INTEGER NOT NULL REFERENCES users(telegram_id),
     message_text TEXT NOT NULL,
     day_number INTEGER NOT NULL,
+    source TEXT NOT NULL DEFAULT 'daily_message',
     sent_at TEXT,
     opened INTEGER DEFAULT 0,
     responded INTEGER DEFAULT 0,
@@ -223,6 +224,7 @@ CREATE TABLE IF NOT EXISTS session_feedback (
     messages_in_session INTEGER NOT NULL DEFAULT 0,
     feeling_after INTEGER,
     tried_in_practice INTEGER,
+    sent INTEGER DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_sf_telegram ON session_feedback(telegram_id);
@@ -898,14 +900,15 @@ async def create_daily_message(
     telegram_id: int,
     message_text: str,
     day_number: int,
+    source: str = "daily_message",
 ) -> int:
     now = _now()
     async with get_db() as db:
         cur = await db.execute(
             """INSERT INTO daily_messages
-               (telegram_id, message_text, day_number, sent_at, created_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (telegram_id, message_text, day_number, now, now),
+               (telegram_id, message_text, day_number, source, sent_at, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (telegram_id, message_text, day_number, source, now, now),
         )
         await db.commit()
         return cur.lastrowid
@@ -920,6 +923,31 @@ async def mark_daily_responded(daily_id: int, response_delay_minutes: int):
             (response_delay_minutes, daily_id),
         )
         await db.commit()
+
+
+async def has_daily_today(telegram_id: int) -> bool:
+    """Проверяет, было ли уже отправлено daily-сообщение сегодня (idempotency)."""
+    async with get_db() as db:
+        async with db.execute(
+            """SELECT 1 FROM daily_messages
+               WHERE telegram_id = ? AND DATE(sent_at) = DATE('now')
+               LIMIT 1""",
+            (telegram_id,),
+        ) as cur:
+            return await cur.fetchone() is not None
+
+
+async def get_unresponded_daily(telegram_id: int) -> Optional[dict]:
+    """Находит последнее неотвеченное daily_message за сегодня."""
+    async with get_db() as db:
+        async with db.execute(
+            """SELECT id, sent_at FROM daily_messages
+               WHERE telegram_id = ? AND responded = 0 AND DATE(created_at) = DATE('now')
+               ORDER BY id DESC LIMIT 1""",
+            (telegram_id,),
+        ) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
 
 
 # ---------------------------------------------------------------------------
@@ -960,6 +988,27 @@ async def update_enactment(feedback_id: int, tried_in_practice: int):
             (tried_in_practice, feedback_id),
         )
         await db.commit()
+
+
+async def mark_feedback_sent(feedback_id: int) -> None:
+    """Помечает feedback как отправленный (sent=1)."""
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE session_feedback SET sent = 1 WHERE id = ?",
+            (feedback_id,),
+        )
+        await db.commit()
+
+
+async def get_unsent_feedback(telegram_id: int) -> list[dict]:
+    """Возвращает все неотправленные feedback-записи пользователя."""
+    async with get_db() as db:
+        async with db.execute(
+            "SELECT id, episode_id, session_end, messages_in_session "
+            "FROM session_feedback WHERE telegram_id = ? AND sent = 0",
+            (telegram_id,),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
 
 
 # ---------------------------------------------------------------------------
@@ -1014,6 +1063,106 @@ async def delete_old_webapp_events(days: int = 90):
         )
         await db.commit()
     logger.info("delete_old_webapp_events: удалены записи старше %d дней", days)
+
+
+# ---------------------------------------------------------------------------
+# Удаление данных пользователя
+# ---------------------------------------------------------------------------
+
+
+async def delete_user_data(telegram_id: int):
+    """Удаляет все личные данные пользователя, но сохраняет запись в users.
+
+    Для команды /forget. Не удаляет: users, messages, processed_messages.
+    Сбрасывает счётчики в users (фаза, кол-во сообщений, флаги).
+    """
+    async with get_db() as db:
+        # Таблицы без FK-зависимостей (порядок не важен)
+        await db.execute(
+            "DELETE FROM semantic_profiles WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM profile_versions WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM episodes WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM procedural_memory WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM pending_facts WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM emotion_log WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM patterns WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM phase_transitions WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM session_feedback WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM daily_messages WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        # goal_steps перед goals (FK: goal_steps.goal_id -> goals.id)
+        await db.execute(
+            "DELETE FROM goal_steps WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM goals WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        # Сброс счётчиков в users
+        await db.execute(
+            """UPDATE users SET
+                messages_total = 0,
+                current_phase = 'ЗНАКОМСТВО',
+                needs_full_update = 0,
+                last_full_update_at = NULL
+            WHERE telegram_id = ?""",
+            (telegram_id,),
+        )
+        await db.commit()
+    logger.info("Deleted user data for %s", telegram_id)
+
+
+async def delete_user_completely(telegram_id: int):
+    """Удаляет ВСЕ данные пользователя, включая запись в users.
+
+    Для команды /delete_account. Сначала чистит личные данные,
+    затем удаляет messages, processed_messages, users.
+    """
+    await delete_user_data(telegram_id)
+    async with get_db() as db:
+        await db.execute(
+            "DELETE FROM messages WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM processed_messages WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.execute(
+            "DELETE FROM users WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.commit()
+    logger.info("Deleted user completely for %s", telegram_id)
 
 
 # ---------------------------------------------------------------------------

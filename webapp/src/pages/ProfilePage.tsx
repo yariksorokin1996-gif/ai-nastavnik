@@ -1,26 +1,51 @@
-import { updateStyle, updateMode } from '../api';
+import { useState, useCallback } from 'react';
+import { deleteAccount } from '../api';
 import type { UserState } from '../hooks/useUser';
 
-const MODES = [
-  { id: 'coach', icon: '🧠', label: 'Коуч' },
-  { id: 'friend', icon: '👩', label: 'Подруга' },
-  { id: 'astrologer', icon: '🔮', label: 'Астролог' },
-];
-
-const STYLE_NAMES: Record<number, string> = {
-  1: '🌿 Мягкий',
-  2: '⚖️ Сбалансированный',
-  3: '🔥 Жёсткий',
-};
+const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'eva_nastavnik_bot';
 
 interface ProfilePageProps {
   userState: UserState;
 }
 
 export function ProfilePage({ userState }: ProfilePageProps) {
-  const { user, loading, error, retry, setUser } = userState;
+  const { user, loading, error, retry } = userState;
   const tg = window.Telegram?.WebApp;
   const tgUser = tg?.initDataUnsafe?.user;
+
+  const [showAbout, setShowAbout] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting' | 'done'>('idle');
+
+  const handleForgetTopic = useCallback(() => {
+    if (tg) {
+      tg.openTelegramLink(`https://t.me/${BOT_USERNAME}?start=forget`);
+    }
+  }, [tg]);
+
+  const handleDeleteAccount = useCallback(async () => {
+    const confirmed = window.confirm(
+      'Все данные будут удалены. Это действие нельзя отменить. Продолжить?',
+    );
+    if (!confirmed) return;
+
+    setDeleteStatus('deleting');
+    try {
+      await deleteAccount();
+      setDeleteStatus('done');
+      setTimeout(() => {
+        tg?.close();
+      }, 2000);
+    } catch {
+      setDeleteStatus('idle');
+      tg?.HapticFeedback?.notificationOccurred('error');
+    }
+  }, [tg]);
+
+  const handleHelp = useCallback(() => {
+    if (tg) {
+      tg.openTelegramLink(`https://t.me/${BOT_USERNAME}?start=help`);
+    }
+  }, [tg]);
 
   // Loading
   if (loading) {
@@ -40,50 +65,24 @@ export function ProfilePage({ userState }: ProfilePageProps) {
     return (
       <div className="error-state">
         <div className="error-state__emoji">😔</div>
-        <div className="error-state__text">Не удалось загрузить данные</div>
+        <div className="error-state__text">Не удалось загрузить</div>
         <button className="error-state__btn" onClick={retry}>Повторить</button>
+      </div>
+    );
+  }
+
+  // Delete done
+  if (deleteStatus === 'done') {
+    return (
+      <div className="error-state">
+        <div className="error-state__emoji">👋</div>
+        <div className="error-state__text">Готово, все данные удалены</div>
       </div>
     );
   }
 
   const name = tgUser?.first_name || user?.name || 'Гость';
   const photoUrl = tgUser?.photo_url;
-  const currentMode = user?.mode || 'coach';
-
-  const handleStyleChange = async () => {
-    if (!user) return;
-    const nextStyle = (user.coaching_style % 3) + 1;
-    try {
-      await updateStyle(nextStyle);
-      setUser({ ...user, coaching_style: nextStyle });
-      tg?.HapticFeedback?.notificationOccurred('success');
-    } catch {
-      tg?.HapticFeedback?.notificationOccurred('error');
-    }
-  };
-
-  const handleModeSelect = async (modeId: string) => {
-    if (!user) return;
-    setUser({ ...user, mode: modeId });
-    tg?.HapticFeedback?.selectionChanged();
-    try {
-      await updateMode(modeId);
-    } catch {
-      tg?.HapticFeedback?.notificationOccurred('error');
-    }
-  };
-
-  const handleComingSoon = () => {
-    if (tg && typeof (tg as any).showPopup === 'function') {
-      (tg as any).showPopup({
-        title: 'Скоро!',
-        message: 'Эта функция появится в ближайшее время',
-        buttons: [{ type: 'ok' }],
-      });
-    } else {
-      alert('Эта функция появится в ближайшее время');
-    }
-  };
 
   return (
     <>
@@ -98,47 +97,7 @@ export function ProfilePage({ userState }: ProfilePageProps) {
         </div>
         <div className="profile-name">{name}</div>
         <div className="profile-meta">
-          Сессий: {user?.sessions_count || 0} · {user?.is_premium ? 'Про' : 'Базовый план'}
-        </div>
-      </div>
-
-      {/* Подписка — только если не премиум */}
-      {!user?.is_premium && (
-        <div className="sub-banner">
-          <h3>Полный доступ</h3>
-          <p>Все режимы общения, расклады, персональные прогнозы и безлимитные сессии</p>
-          <button onClick={handleComingSoon}>Оформить подписку ⭐</button>
-        </div>
-      )}
-
-      {/* Наставник — режим */}
-      <div className="section">
-        <div className="section-header">Режим общения</div>
-        <div className="modes-grid">
-          {MODES.map((mode) => (
-            <div
-              key={mode.id}
-              className={`mode-item ${currentMode === mode.id ? 'mode-item--active' : ''}`}
-              onClick={() => handleModeSelect(mode.id)}
-            >
-              <span className="mode-item__icon">{mode.icon}</span>
-              <span className="mode-item__label">{mode.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Наставник — стиль */}
-      <div className="section">
-        <div className="section-header">Наставник</div>
-        <div className="section-card">
-          <div className="cell cell--tappable" onClick={handleStyleChange}>
-            <span className="cell-icon">🎯</span>
-            <div className="cell-body">
-              <div className="cell-title">Стиль коучинга</div>
-            </div>
-            <span className="cell-after">{STYLE_NAMES[user?.coaching_style || 2]}</span>
-          </div>
+          Сессий: {user?.sessions_count || 0}
         </div>
       </div>
 
@@ -154,13 +113,6 @@ export function ProfilePage({ userState }: ProfilePageProps) {
             <span className="badge-soon">Скоро</span>
           </div>
           <div className="cell">
-            <span className="cell-icon">🌙</span>
-            <div className="cell-body">
-              <div className="cell-title">Вечерний чек-ин</div>
-            </div>
-            <span className="badge-soon">Скоро</span>
-          </div>
-          <div className="cell">
             <span className="cell-icon">🔔</span>
             <div className="cell-body">
               <div className="cell-title">Напоминания</div>
@@ -170,26 +122,71 @@ export function ProfilePage({ userState }: ProfilePageProps) {
         </div>
       </div>
 
+      {/* Действия */}
+      <div className="section">
+        <div className="section-header">Действия</div>
+        <div className="section-card">
+          <div className="cell cell--tappable" onClick={handleForgetTopic}>
+            <span className="cell-icon">🗑</span>
+            <div className="cell-body">
+              <div className="cell-title">Забудь тему...</div>
+            </div>
+            <span className="cell-chevron">›</span>
+          </div>
+          <div
+            className="cell cell--tappable"
+            onClick={handleDeleteAccount}
+            style={deleteStatus === 'deleting' ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+          >
+            <span className="cell-icon">❌</span>
+            <div className="cell-body">
+              <div className="cell-title" style={{ color: 'var(--tg-theme-destructive-text-color, #FF3B30)' }}>
+                {deleteStatus === 'deleting' ? 'Удаляю...' : 'Удалить аккаунт'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Ещё */}
       <div className="section">
         <div className="section-header">Ещё</div>
         <div className="section-card">
-          <div className="cell">
-            <span className="cell-icon">📜</span>
+          <div className="cell cell--tappable" onClick={() => setShowAbout(true)}>
+            <span className="cell-icon">ℹ️</span>
             <div className="cell-body">
-              <div className="cell-title">История платежей</div>
+              <div className="cell-title">О Еве</div>
             </div>
-            <span className="badge-soon">Скоро</span>
+            <span className="cell-chevron">›</span>
           </div>
-          <div className="cell">
+          <div className="cell cell--tappable" onClick={handleHelp}>
             <span className="cell-icon">❓</span>
             <div className="cell-body">
               <div className="cell-title">Помощь</div>
             </div>
-            <span className="badge-soon">Скоро</span>
+            <span className="cell-chevron">›</span>
           </div>
         </div>
       </div>
+
+      {/* About overlay */}
+      {showAbout && (
+        <div className="overlay" onClick={() => setShowAbout(false)}>
+          <div className="overlay__card" onClick={(e) => e.stopPropagation()}>
+            <div className="overlay__title">О Еве</div>
+            <p className="overlay__text">
+              Ева — AI-подруга. Она не заменяет психолога, психотерапевта или врача.
+              Если тебе тяжело — обратись к специалисту или позвони на горячую линию:
+            </p>
+            <p className="overlay__text" style={{ fontWeight: 600 }}>
+              8-800-2000-122 (бесплатно, 24/7)
+            </p>
+            <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => setShowAbout(false)}>
+              Понятно
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

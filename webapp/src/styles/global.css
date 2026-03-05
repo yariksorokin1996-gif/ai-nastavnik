@@ -30,56 +30,15 @@ html, body {
   min-height: 0;
 }
 
-/* ===== FORCE LIGHT THEME — override Telegram dark mode ===== */
-:root,
-html,
-body,
-#root,
-.tgui--light,
-.tgui--dark,
-[data-appearance="light"],
-[data-appearance="dark"] {
-  --tg-theme-bg-color: #F2F2F7 !important;
-  --tg-theme-text-color: #000000 !important;
-  --tg-theme-hint-color: #6C6C70 !important;
-  --tg-theme-link-color: #FF6B8A !important;
-  --tg-theme-button-color: #FF6B8A !important;
-  --tg-theme-button-text-color: #FFFFFF !important;
-  --tg-theme-secondary-bg-color: #FFFFFF !important;
-  --tg-theme-header-bg-color: #FFFFFF !important;
-  --tg-theme-accent-text-color: #FF6B8A !important;
-  --tg-theme-section-bg-color: #FFFFFF !important;
-  --tg-theme-section-header-text-color: #6C6C70 !important;
-  --tg-theme-subtitle-text-color: #6C6C70 !important;
-  --tg-theme-destructive-text-color: #FF3B30 !important;
-  --tg-theme-section-separator-color: rgba(60, 60, 67, 0.12) !important;
-  --tg-theme-bottom-bar-bg-color: #FFFFFF !important;
-
-  --tgui--bg_color: #F2F2F7 !important;
-  --tgui--secondary_bg_color: #F2F2F7 !important;
-  --tgui--text_color: #000000 !important;
-  --tgui--hint_color: #6C6C70 !important;
-  --tgui--link_color: #FF6B8A !important;
-  --tgui--button_color: #FF6B8A !important;
-  --tgui--button_text_color: #FFFFFF !important;
-  --tgui--header_bg_color: #FFFFFF !important;
-  --tgui--section_bg_color: #FFFFFF !important;
-  --tgui--section_header_text_color: #6C6C70 !important;
-  --tgui--subtitle_text_color: #6C6C70 !important;
-  --tgui--destructive_text_color: #FF3B30 !important;
-  --tgui--section_separator_color: rgba(60, 60, 67, 0.12) !important;
-
-  color-scheme: light !important;
-}
-
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
-  background-color: #F2F2F7 !important;
-  color: #000000 !important;
+  background-color: var(--bg);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  color-scheme: light dark;
 }
 
 #root {
@@ -211,7 +170,7 @@ body {
 .progress-bar {
   width: 100%;
   height: 6px;
-  background: #E5E5EA;
+  background: var(--separator);
   border-radius: 3px;
   overflow: hidden;
   margin-top: 8px;
@@ -367,10 +326,21 @@ body {
   font-weight: 500;
 }
 
+.calendar-day--active {
+  background: rgba(255, 107, 138, 0.15);
+  color: var(--accent);
+  font-weight: 500;
+}
+
 .calendar-day--today {
+  border: 2px solid var(--accent);
+  font-weight: 600;
+}
+
+.calendar-day--active.calendar-day--today {
   background: var(--accent);
   color: #fff;
-  font-weight: 600;
+  border-color: var(--accent);
 }
 
 /* --- Profile header --- */
@@ -481,11 +451,11 @@ body {
   display: flex !important;
   justify-content: space-evenly !important;
   align-items: center !important;
-  background: #FFFFFF !important;
+  background: var(--bg-card) !important;
   border-radius: 100px !important;
   padding: 10px 0 !important;
   z-index: 1001 !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: var(--shadow-tabbar) !important;
 }
 
 /* Full-width fade covering entire bottom zone */
@@ -529,7 +499,7 @@ body {
 .tab-label {
   font-size: 10px;
   font-weight: 500;
-  color: #6C6C70;
+  color: var(--text-secondary);
   letter-spacing: 0.01em;
 }
 
@@ -546,7 +516,7 @@ body {
 }
 
 .cell--tappable:active {
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: var(--tap-highlight);
 }
 
 /* --- "Coming soon" badge --- */
@@ -576,7 +546,7 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #E5E5EA 25%, #F2F2F7 50%, #E5E5EA 75%);
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shine) 50%, var(--skeleton-base) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 6px;
@@ -639,7 +609,7 @@ body {
 }
 
 .error-state__btn:active {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--tap-highlight);
 }
 
 /* --- Goal steps (Мой путь) --- */
@@ -698,6 +668,70 @@ body {
   padding: 8px var(--cell-padding-h) 4px;
 }
 
+/* --- Affirmation card --- */
+.affirmation-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: var(--cell-padding-v) var(--cell-padding-h);
+}
+
+.affirmation-card__icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.affirmation-card__text {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* --- Step error --- */
+.step-error {
+  font-size: 12px;
+  color: var(--tg-theme-destructive-text-color, #FF3B30);
+  padding: 0 var(--cell-padding-h) 8px 60px;
+}
+
+/* --- Overlay (About, modals) --- */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: var(--page-padding);
+}
+
+.overlay__card {
+  background: var(--bg-card);
+  border-radius: var(--card-radius);
+  padding: 24px 20px;
+  max-width: 340px;
+  width: 100%;
+}
+
+.overlay__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.overlay__text {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
 /* --- Animation --- */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -710,4 +744,43 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-in { animation: none; }
+}
+
+/* --- Theme toggle (sun/moon pill) --- */
+.theme-toggle {
+  position: relative;
+  width: 56px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--separator);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.3s ease;
+}
+
+.theme-toggle--dark {
+  background: rgba(255, 107, 138, 0.2);
+}
+
+.theme-toggle__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: transform 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.theme-toggle--dark .theme-toggle__knob {
+  transform: translateX(28px);
 }

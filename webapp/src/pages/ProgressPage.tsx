@@ -1,43 +1,27 @@
 import { useState, useEffect } from 'react';
-import { fetchDaily, fetchPatterns, type DailyData, type PatternData } from '../api';
+import {
+  fetchGoals,
+  fetchCalendar,
+  fetchPatterns,
+  type GoalsData,
+  type CalendarData,
+  type PatternData,
+} from '../api';
 import type { UserState } from '../hooks/useUser';
-
-// Goal milestones from API (future: will come from backend)
-// For now, derive from phase
-const PHASE_MILESTONES: Record<string, { steps: string[]; current: number }> = {
-  onboarding: {
-    steps: ['Познакомиться с наставником', 'Рассказать о себе', 'Определить направление', 'Поставить первую цель', 'Начать работу'],
-    current: 0,
-  },
-  diagnosis: {
-    steps: ['Познакомиться с наставником', 'Рассказать о себе', 'Определить направление', 'Поставить первую цель', 'Начать работу'],
-    current: 1,
-  },
-  goal: {
-    steps: ['Познакомиться с наставником', 'Рассказать о себе', 'Определить направление', 'Поставить первую цель', 'Начать работу'],
-    current: 2,
-  },
-  planning: {
-    steps: ['Познакомиться с наставником', 'Рассказать о себе', 'Определить направление', 'Поставить первую цель', 'Начать работу'],
-    current: 3,
-  },
-  daily: {
-    steps: ['Познакомиться с наставником', 'Рассказать о себе', 'Определить направление', 'Поставить первую цель', 'Начать работу'],
-    current: 4,
-  },
-};
 
 interface ProgressPageProps {
   userState: UserState;
 }
 
 export function ProgressPage({ userState }: ProgressPageProps) {
-  const { user, loading, error, retry } = userState;
-  const [daily, setDaily] = useState<DailyData | null>(null);
+  const { loading, error, retry } = userState;
+  const [goals, setGoals] = useState<GoalsData | null>(null);
+  const [calendar, setCalendar] = useState<CalendarData | null>(null);
   const [patterns, setPatterns] = useState<PatternData[]>([]);
 
   useEffect(() => {
-    fetchDaily().then(setDaily).catch(() => {});
+    fetchGoals().then(setGoals).catch(() => {});
+    fetchCalendar().then(setCalendar).catch(() => {});
     fetchPatterns().then(setPatterns).catch(() => {});
   }, []);
 
@@ -58,36 +42,47 @@ export function ProgressPage({ userState }: ProgressPageProps) {
     return (
       <div className="error-state">
         <div className="error-state__emoji">😔</div>
-        <div className="error-state__text">Не удалось загрузить данные</div>
+        <div className="error-state__text">Не удалось загрузить</div>
         <button className="error-state__btn" onClick={retry}>Повторить</button>
       </div>
     );
   }
 
-  const phase = user?.phase || 'onboarding';
-  const sessionsCount = daily?.sessions_count || user?.sessions_count || 0;
-  const streak = daily?.streak || 0;
-  const goalName = user?.goal;
+  const goal = goals?.goal ?? null;
+  const streak = calendar?.streak ?? 0;
+  const totalSessions = calendar?.total_sessions ?? 0;
 
-  // Milestones
-  const milestones = PHASE_MILESTONES[phase] || PHASE_MILESTONES.onboarding;
-  const progressPercent = Math.round((milestones.current / milestones.steps.length) * 100);
+  // Goal progress
+  const completedSteps = goal ? goal.steps.filter((s) => s.status === 'done').length : 0;
+  const totalSteps = goal ? goal.steps.length : 0;
+  const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
-  // Dynamic calendar
+  // Calendar
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   const today = now.getDate();
-  const monthName = now.toLocaleDateString('ru-RU', { month: 'long' });
+  const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  // Capitalize first letter
+  const monthNameCapitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  // Day of week for 1st of month (0=Sun, convert to Mon=0)
   const firstDayRaw = new Date(year, month, 1).getDay();
   const firstDayOffset = firstDayRaw === 0 ? 6 : firstDayRaw - 1;
 
-  // Patterns for display
-  const displayPatterns = patterns.length > 0
-    ? patterns
-    : (daily?.recent_patterns || []);
+  // Active days set for current month
+  const activeDaysSet = new Set(calendar?.active_days ?? []);
+
+  const formatDayStr = (dayNum: number): string => {
+    const m = String(month + 1).padStart(2, '0');
+    const d = String(dayNum).padStart(2, '0');
+    return `${year}-${m}-${d}`;
+  };
+
+  const statusIcon = (status: string): string => {
+    if (status === 'done') return '✓';
+    if (status === 'skipped') return '–';
+    return '○';
+  };
 
   return (
     <>
@@ -95,30 +90,26 @@ export function ProgressPage({ userState }: ProgressPageProps) {
         <h1>Мой путь</h1>
       </div>
 
-      {/* Цель с шагами */}
+      {/* Цель */}
       <div className="section">
         <div className="section-header">Цель</div>
         <div className="section-card">
-          {goalName || sessionsCount > 0 ? (
+          {goal ? (
             <div style={{ padding: '16px' }}>
               <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>
-                🎯 {goalName || 'Знакомство с наставником'}
+                🎯 {goal.title}
               </div>
               <div className="goal-steps">
-                {milestones.steps.map((step, i) => {
-                  const isDone = i < milestones.current;
-                  const isCurrent = i === milestones.current;
-                  return (
-                    <div key={i} className="goal-step">
-                      <div className={`goal-step__icon ${isDone ? 'goal-step__icon--done' : isCurrent ? 'goal-step__icon--current' : 'goal-step__icon--future'}`}>
-                        {isDone ? '✅' : isCurrent ? '→' : '○'}
-                      </div>
-                      <div className={`goal-step__text ${isDone ? 'goal-step__text--done' : isCurrent ? 'goal-step__text--current' : ''}`}>
-                        {step}
-                      </div>
+                {goal.steps.map((step) => (
+                  <div key={step.id} className="goal-step">
+                    <div className={`goal-step__icon ${step.status === 'done' ? 'goal-step__icon--done' : step.status === 'skipped' ? 'goal-step__icon--future' : 'goal-step__icon--current'}`}>
+                      {statusIcon(step.status)}
                     </div>
-                  );
-                })}
+                    <div className={`goal-step__text ${step.status === 'done' ? 'goal-step__text--done' : ''}`}>
+                      {step.title}
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="progress-bar" style={{ marginTop: 12 }}>
                 <div className="progress-fill progress-fill--green" style={{ width: `${progressPercent}%` }} />
@@ -126,22 +117,19 @@ export function ProgressPage({ userState }: ProgressPageProps) {
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'right', marginTop: 4 }}>
                 {progressPercent}%
               </div>
-              <div className="goal-hint">
-                Хочешь сменить цель? Просто скажи наставнику
-              </div>
             </div>
           ) : (
             <div className="placeholder">
               <div className="placeholder__emoji">✨</div>
-              <div className="placeholder__text">Цель появится после первого разговора с наставником</div>
+              <div className="placeholder__text">Цель появится после первых разговоров с Евой</div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Календарь — динамический */}
+      {/* Календарь текущего месяца */}
       <div className="section">
-        <div className="section-header">{monthName}</div>
+        <div className="section-header">{monthNameCapitalized}</div>
         <div className="section-card">
           <div className="calendar-grid">
             {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
@@ -154,13 +142,13 @@ export function ProgressPage({ userState }: ProgressPageProps) {
             {/* Days */}
             {Array.from({ length: daysInMonth }, (_, i) => {
               const dayNum = i + 1;
-              // Sessions in recent days (simple heuristic: last N days based on streak)
-              const isDone = dayNum < today && dayNum >= today - Math.min(streak, today - 1);
+              const dayStr = formatDayStr(dayNum);
+              const isActive = activeDaysSet.has(dayStr);
               const isToday = dayNum === today;
               return (
                 <span
                   key={dayNum}
-                  className={`calendar-day ${isDone ? 'calendar-day--done' : ''} ${isToday ? 'calendar-day--today' : ''}`}
+                  className={`calendar-day ${isActive ? 'calendar-day--active' : ''} ${isToday ? 'calendar-day--today' : ''}`}
                 >
                   {dayNum}
                 </span>
@@ -177,26 +165,26 @@ export function ProgressPage({ userState }: ProgressPageProps) {
           <div className="cell">
             <span className="cell-icon">🔥</span>
             <div className="cell-body">
-              <div className="cell-title">Серия дней</div>
+              <div className="cell-title">Серия</div>
             </div>
-            <span className="cell-after">{streak || '—'}</span>
+            <span className="cell-after">{streak > 0 ? `${streak} дней` : '—'}</span>
           </div>
           <div className="cell">
             <span className="cell-icon">💬</span>
             <div className="cell-body">
-              <div className="cell-title">Всего сессий</div>
+              <div className="cell-title">Всего</div>
             </div>
-            <span className="cell-after">{sessionsCount}</span>
+            <span className="cell-after">{totalSessions} сессий</span>
           </div>
         </div>
       </div>
 
       {/* Паттерны */}
       <div className="section">
-        <div className="section-header">Что замечает наставник</div>
+        <div className="section-header">Что замечает Ева</div>
         <div className="section-card">
-          {displayPatterns.length > 0 ? (
-            displayPatterns.slice(0, 3).map((p, i) => (
+          {patterns.length > 0 ? (
+            patterns.slice(0, 3).map((p, i) => (
               <div key={i} className="cell">
                 <span className="cell-icon">💡</span>
                 <div className="cell-body">
@@ -207,16 +195,11 @@ export function ProgressPage({ userState }: ProgressPageProps) {
           ) : (
             <div className="placeholder">
               <div className="placeholder__emoji">🔍</div>
-              <div className="placeholder__text">Наставник заметит привычки после 3+ сессий</div>
+              <div className="placeholder__text">Наставник заметит привычки после 3+ разговоров</div>
             </div>
           )}
         </div>
       </div>
-
-      <button className="btn-primary" onClick={() => window.Telegram?.WebApp?.close()}>
-        Написать наставнику →
-      </button>
-      <div className="btn-hint">Откроется чат с наставником</div>
     </>
   );
 }

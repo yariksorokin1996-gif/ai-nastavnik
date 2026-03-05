@@ -38,6 +38,7 @@ interface TelegramWebApp {
   onEvent: (event: string, cb: () => void) => void;
   offEvent: (event: string, cb: () => void) => void;
   openInvoice: (url: string, cb?: (status: string) => void) => void;
+  openTelegramLink: (url: string) => void;
   requestFullscreen: () => void;
   disableVerticalSwipes: () => void;
   setHeaderColor: (color: string) => void;

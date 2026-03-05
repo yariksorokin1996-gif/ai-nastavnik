@@ -59,6 +59,8 @@ async def call_claude(
                 response.usage.output_tokens,
                 latency_ms,
             )
+            if not response.content:
+                raise LLMError("Claude returned empty response")
             return response.content[0].text
         except anthropic.AuthenticationError as e:
             logger.error('call_claude error: %s', str(e))
@@ -104,6 +106,8 @@ async def call_gpt(
                 response.usage.completion_tokens,
                 latency_ms,
             )
+            if not response.choices:
+                raise LLMError("GPT returned empty response")
             return response.choices[0].message.content
         except openai.AuthenticationError as e:
             logger.error('call_gpt error: %s', str(e))

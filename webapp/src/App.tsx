@@ -5,44 +5,37 @@ import { HomePage } from './pages/HomePage';
 import { ProgressPage } from './pages/ProgressPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { useUser } from './hooks/useUser';
+import { useTheme } from './hooks/useTheme';
+import { trackEvent } from './analytics';
 
 type Tab = 'home' | 'progress' | 'profile';
 
 const INACTIVE = '#6C6C70';
 const ACTIVE = '#FF6B8A';
+const IS_DEV = !window.Telegram?.WebApp?.initData;
+
+const devWrapperStyle: React.CSSProperties = {
+  maxWidth: 430,
+  margin: '0 auto',
+  minHeight: '100vh',
+  boxShadow: '0 0 40px rgba(0,0,0,0.08)',
+  position: 'relative' as const,
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [animating, setAnimating] = useState(false);
   const userState = useUser();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
-    // Force light theme via JS (highest priority)
-    const vars: [string, string][] = [
-      ['--tg-theme-bg-color', '#F2F2F7'],
-      ['--tg-theme-text-color', '#000000'],
-      ['--tg-theme-hint-color', '#6C6C70'],
-      ['--tg-theme-link-color', '#FF6B8A'],
-      ['--tg-theme-button-color', '#FF6B8A'],
-      ['--tg-theme-button-text-color', '#FFFFFF'],
-      ['--tg-theme-secondary-bg-color', '#FFFFFF'],
-      ['--tg-theme-header-bg-color', '#FFFFFF'],
-      ['--tg-theme-section-bg-color', '#FFFFFF'],
-      ['--tg-theme-bottom-bar-bg-color', '#FFFFFF'],
-    ];
-    vars.forEach(([k, v]) => document.documentElement.style.setProperty(k, v, 'important'));
-    document.body.style.backgroundColor = '#F2F2F7';
-    document.body.style.color = '#000000';
-
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
       try { tg.disableVerticalSwipes(); } catch {}
-      try { tg.setHeaderColor('#FFFFFF'); } catch {}
-      try { tg.setBackgroundColor('#F2F2F7'); } catch {}
-      try { tg.setBottomBarColor('#FFFFFF'); } catch {}
     }
+    trackEvent({ event_type: 'app_open' });
   }, []);
 
   const handleTab = (tab: Tab) => {
@@ -50,16 +43,18 @@ function App() {
     setAnimating(true);
     setActiveTab(tab);
     window.Telegram?.WebApp?.HapticFeedback?.selectionChanged();
+    trackEvent({ event_type: 'page_view', page: tab });
     setTimeout(() => setAnimating(false), 250);
   };
 
   return (
-    <AppRoot appearance="light">
+    <AppRoot appearance={theme}>
+     <div style={IS_DEV ? devWrapperStyle : undefined}>
       {/* Single .page container for correct flex layout + scroll */}
       <div className="page">
         <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
           <div className={animating && activeTab === 'home' ? 'animate-in' : ''}>
-            <HomePage userState={userState} />
+            <HomePage userState={userState} theme={theme} onToggleTheme={toggleTheme} />
           </div>
         </div>
         <div style={{ display: activeTab === 'progress' ? 'block' : 'none' }}>
@@ -109,6 +104,7 @@ function App() {
           <span className="tab-label">Профиль</span>
         </button>
       </div>
+     </div>
     </AppRoot>
   );
 }

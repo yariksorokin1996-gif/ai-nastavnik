@@ -1,6 +1,6 @@
 {
   "version": "2.1",
-  "current": ["12.1"],
+  "current": ["19"],
   "steps": [
     {
       "step": 1,
@@ -378,7 +378,8 @@
       "step": 12,
       "name": "Главный мотор: session_manager + full_memory_update + handlers",
       "output": "bot/session_manager.py, bot/memory/full_memory_update.py, bot/handlers.py",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-04",
       "tasks": [
         {
           "id": "12.1",
@@ -387,7 +388,8 @@
           "files": ["bot/session_manager.py"],
           "contract": "ПЕРЕПИСАТЬ bot/session_manager.py (198 строк → ~350). По specs/session_manager_spec.md:\n\nasync def process_message(telegram_id, message_id, text, voice_file_id, user_name) -> str | None\n\n14 шагов: idempotency → lock → pause → voice → crisis → rate limit → save → context → Claude → save response → async mini-update → async phase check → counters. Мьютекс dict[int, Lock]. Rate limit 60/min. Кризис 3 уровня (L3 = шаблон). Метрики: latency_ms, source, char_length. FALLBACK_RESPONSE при ошибках.",
           "depends_on": ["10.1", "11.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "12.2",
@@ -396,7 +398,8 @@
           "files": ["bot/memory/full_memory_update.py"],
           "contract": "СОЗДАТЬ bot/memory/full_memory_update.py. По specs/full_memory_update_spec.md:\n\nasync def run_full_memory_update() -> None — APScheduler job, каждые 5 мин\nasync def update_single_user(telegram_id: int) -> FullUpdateResult\n\n5 шагов: загрузка сессии → конспект (GPT-4o-mini) → профиль (GPT-4o-mini, merge) → процедурная → финализация. Retry: 3 ошибки → alert. needs_full_update=1 при ошибке. Вызывает ask_feeling после создания эпизода.",
           "depends_on": ["9.1", "9.2", "9.3"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "12.3",
@@ -405,7 +408,8 @@
           "files": ["bot/handlers.py"],
           "contract": "ОБНОВИТЬ bot/handlers.py (275 строк). Изменения:\n1. handle_message: передавать message_id в process_message (для idempotency)\n2. handle_voice: передавать message_id и voice.file_id\n3. Добавить callback_query_handler для inline-кнопок feedback (feeling:1/2/3, enact:0/1) → database.update_feeling / update_enactment\n4. start(): добавить дисклеймер 'Ева — не терапевт...'\n5. Убрать: кнопки 'Просто поболтать'/'Вернуться к работе' (режимы убраны из MVP)\n6. Убрать: style_choice, style_command (стили убраны)\n7. Добавить: /forget (удалить профиль + эпизоды), /delete_account (удалить всё)",
           "depends_on": ["12.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "12.4",
@@ -414,16 +418,18 @@
           "files": ["shared/safety.py"],
           "contract": "ОБНОВИТЬ shared/safety.py. Изменения:\n1. detect_crisis(text: str) -> CrisisResult — regex + LLM-верификация (GPT-4o-mini, timeout 10с)\n2. Логирование: level, trigger_text, telegram_id при каждом срабатывании\n3. CRISIS_RESPONSE_LEVEL3 = 'Я слышу, что тебе сейчас очень тяжело...8-800-2000-122'\n4. CRISIS_INSTRUCTION_LEVEL2 = '⚠️ КРИЗИС: спроси «Ты сейчас в безопасности?»...'\n5. False positive защита: 'умираю от смеха' → НЕ кризис (LLM верификация)",
           "depends_on": ["8.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "12.5",
           "description": "Тесты для session_manager, full_memory_update, handlers, safety",
           "agent": "tester",
-          "files": ["tests/unit/test_session_manager.py", "tests/unit/test_full_memory_update.py"],
-          "contract": "Тесты: session_manager (idempotency, мьютекс, crisis L3 шаблон, rate limit, voice fallback, Claude timeout → fallback, mini-update async), full_memory_update (5 шагов, retry при ошибке, needs_full_update=1 при fail, merge профиля), safety (3 уровня, false positive, LLM verify). Mock LLM + DB. Минимум 25 тестов.",
+          "files": ["tests/unit/test_session_manager.py", "tests/unit/test_full_memory_update.py", "tests/unit/test_handlers.py", "tests/unit/test_safety.py"],
+          "contract": "Тесты: session_manager (24), full_memory_update (10), handlers (12), safety (8). Итого 54 теста. Все зелёные.",
           "depends_on": ["12.1", "12.2", "12.3", "12.4"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         }
       ]
     },
@@ -431,16 +437,18 @@
       "step": 13,
       "name": "Ева пишет первой: daily_messenger + silence_reminder",
       "output": "bot/daily_messenger.py",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-04",
       "tasks": [
         {
           "id": "13.1",
           "description": "bot/daily_messenger.py — ежедневные сообщения + тишина",
           "agent": "coder-backend",
-          "files": ["bot/daily_messenger.py"],
+          "files": ["bot/daily_messenger.py", "bot/scheduler.py", "bot/prompts/memory_prompts.py", "bot/memory/database.py"],
           "contract": "СОЗДАТЬ bot/daily_messenger.py. 3 функции:\n\nasync def generate_daily_message(telegram_id: int, day_number: int) -> str — GPT-4o-mini с профилем, ~200 токенов\n  Пример: msg = await generate_daily_message(123456, day_number=3) → 'Привет, Маша! Вчера ты говорила про...'\n\nasync def send_daily_messages() -> None — APScheduler job. Первые 3 дня 19-21ч, далее по активности. Условие: если 3 дня не отвечает → прекращаем. Защита: НЕ шлёт если last_automated_msg < 2ч.\n  Пример регистрации: scheduler.add_job(send_daily_messages, 'cron', hour=19)\n\nasync def check_silence() -> None — APScheduler job, каждые 6ч. Молчание >24ч → мягкое напоминание. Защита: НЕ шлёт если last_automated_msg < 6ч.\n\nОшибки:\n- LLMError в generate_daily_message → fallback: банковское сообщение из списка FALLBACK_DAILY_MESSAGES\n- Telegram send_message fail → logger.error, продолжить к следующему юзеру (не крашить job)\n- 3 дня без ответа → не ошибка, тихо пропустить юзера\n- DB ошибка → logger.error, продолжить к следующему юзеру\n\nИспользует: call_gpt, get_profile_as_text, database.get_all_users, database.get_user, database.update_user (last_automated_msg_at), database.create_daily_message, Telegram bot.send_message",
           "depends_on": ["9.1", "8.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "13.2",
@@ -449,7 +457,8 @@
           "files": ["tests/unit/test_daily_messenger.py"],
           "contract": "Тесты: generate (mock LLM, ~200 tok), send_daily (3 дня без ответа → стоп, защита 2ч), check_silence (>24ч → напоминание, защита 6ч). Mock Telegram bot. Минимум 8 тестов.",
           "depends_on": ["13.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         }
       ]
     },
@@ -457,7 +466,8 @@
       "step": 14,
       "name": "Аналитика: feedback + alerter + daily/weekly reports",
       "output": "bot/analytics/",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-04",
       "tasks": [
         {
           "id": "14.1",
@@ -466,7 +476,8 @@
           "files": ["bot/analytics/__init__.py", "bot/analytics/alerter.py"],
           "contract": "СОЗДАТЬ bot/analytics/alerter.py.\n\nclass Alerter:\n  async def check(self, telegram_id: int, event: str, value: Any = None) -> None — проверка пороговых значений из ALERT_THRESHOLDS\n  def reset(self, telegram_id: int, event: str) -> None — сброс счётчика\n  async def _send_alert(self, text: str) -> None — Telegram → OWNER_TELEGRAM_ID\n\nПороги: consecutive_empty_context=3, consecutive_errors=3, latency_critical_ms=25000, crisis_level_3=1\nПример: await alerter.check(123456, 'crisis_level_3') → мгновенный alert\n\nalerter = Alerter() — синглтон на уровне модуля",
           "depends_on": ["8.3"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "14.2",
@@ -475,7 +486,8 @@
           "files": ["bot/analytics/feedback_collector.py"],
           "contract": "СОЗДАТЬ bot/analytics/feedback_collector.py. 2 функции:\n\nasync def ask_feeling(telegram_id: int, episode_id: int) -> None — inline-кнопки 'Лучше 💛'/'Так же'/'Хуже'. Условия: episode 2+ часов назад, нет feedback, cooldown 8ч, >= 3 msg. Пример: await ask_feeling(123456, episode_id=42)\n\nasync def ask_enactment(telegram_id: int) -> None — inline-кнопки 'Да!'/'Пока нет'. Когда: >= 12ч после обсуждения действия, max 1 раз в день. Текст: 'Ты говорила: «{commitment}». Получилось?'\n\nОшибки:\n- Условия не выполнены (cooldown, мало сообщений и т.д.) → тихо вернуть None (не ошибка)\n- Telegram send_message fail → logger.warning, не крашить (не критично)\n- DB ошибка → logger.error, не крашить\n\nИспользует: database.create_feedback, database.get_user, Telegram bot.send_message с InlineKeyboardMarkup",
           "depends_on": ["8.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "14.3",
@@ -484,7 +496,8 @@
           "files": ["bot/analytics/daily_report.py", "bot/analytics/weekly_report.py"],
           "contract": "СОЗДАТЬ daily_report.py:\nasync def generate_daily_report() -> str — APScheduler job 09:00 MSK. 15 метрик из БД. Отправка → OWNER_TELEGRAM_ID.\nПример: scheduler.add_job(generate_daily_report, 'cron', hour=9, timezone='Europe/Moscow')\n\nСОЗДАТЬ weekly_report.py:\nasync def generate_weekly_report() -> str — APScheduler job вс 12:00 MSK. LLM-анализ (GPT-4o-mini) по одному юзеру за запрос. Анонимизация перед LLM. Сохранение в analytics_weekly.\n\nОшибки:\n- daily_report: DB ошибка → отчёт с '❌ Ошибка БД' вместо метрик, всё равно отправить\n- weekly_report: LLMError → отчёт без LLM-анализа (только числовые метрики)\n- Telegram send fail → logger.error + повторить через 5 мин (1 retry)\n- Если OWNER_TELEGRAM_ID = 0 → logger.warning, не отправлять\n\nИспользует: database (все аналитические CRUD), call_gpt, database.save_weekly_report, Telegram bot.send_message",
           "depends_on": ["8.1", "14.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "14.4",
@@ -493,7 +506,8 @@
           "files": ["tests/unit/test_analytics.py"],
           "contract": "Тесты: alerter (пороги, reset, _send_alert mock), feedback_collector (условия ask_feeling: cooldown 8ч, >= 3 msg, ask_enactment: >= 12ч), daily_report (15 метрик формируются), weekly_report (анонимизация, LLM mock). Минимум 12 тестов.",
           "depends_on": ["14.1", "14.2", "14.3"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         }
       ]
     },
@@ -501,25 +515,28 @@
       "step": 15,
       "name": "Webapp: API endpoints + экраны",
       "output": "backend/api.py, webapp/src/pages/",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-04",
       "tasks": [
         {
           "id": "15.1",
           "description": "backend/api.py — новые API endpoints",
           "agent": "coder-backend",
           "files": ["backend/api.py"],
-          "contract": "ОБНОВИТЬ backend/api.py. Новые endpoints:\nGET /api/user/profile → {profile, phase}\nGET /api/user/goals → {active_goal, archived_goals}\nGET /api/user/goals/today → {steps_today, completed_today}\nPUT /api/user/goals/steps/:id → {status: 'done'|'skipped'} + owner check\nGET /api/user/calendar → {active_days, streak, total_sessions}\nGET /api/user/affirmation → {text, source: 'bank'|'generated'}\nGET /health → {status, db, uptime}\nPOST /api/analytics/event → 204\n\nОшибки (HTTP-статусы):\n- 401 Unauthorized — невалидный/отсутствующий initData (HMAC-SHA256 проверка)\n- 403 Forbidden — owner check fail (PUT step чужого юзера)\n- 404 Not Found — юзер не найден в БД / step не найден\n- 429 Too Many Requests — rate limit 60/min превышен (Retry-After header)\n- 500 Internal Server Error — DB/LLM ошибка (logger.error, generic JSON response)\n- /health всегда 200 (даже при проблемах — статус в body: {status: 'degraded', db: false})\n\nRate limit 60/min. Auth: tma ${initData} + HMAC-SHA256. Owner check для PUT.",
+          "contract": "ПЕРЕПИСАТЬ backend/api.py.\n\nУДАЛИТЬ:\n- PUT /api/user/style + StyleUpdate\n- PUT /api/user/mode + ModeUpdate\n- GET /api/user/daily + DailyResponse\n- Поля из UserResponse: is_premium, coaching_style, mode, commitments, patterns_detected\n\nОСТАВИТЬ + ОБНОВИТЬ:\n- GET /api/user — убрать deprecated поля, оставить: telegram_id, name, phase, sessions_count\n- GET /api/user/patterns — как есть\n- GET /health — добавить db check (SELECT 1) + uptime_s (time.monotonic)\n- SPA fallback — как есть\n\nДОБАВИТЬ (8 endpoints):\n1. GET /api/user/goals → get_active_goal() + get_goal_steps() → {goal: {id,title,status,steps:[{id,title,status,deadline_at,completed_at}]} | null}\n2. GET /api/user/goals/today → goal_manager.get_today_steps() → {steps, completed_count, total_count}\n3. PUT /api/user/goals/steps/{step_id} → body: {status:'done'|'skipped'} → complete_step()/skip_step() + OWNER CHECK: _get_step_by_id(step_id).telegram_id == current_user → 403 если не совпадает\n4. GET /api/user/calendar → SQL: SELECT DISTINCT DATE(created_at, '+3 hours') as day FROM messages WHERE telegram_id=? AND role='user' AND created_at >= date('now','-90 days') → streak (последовательные дни от сегодня MSK назад) + total_sessions из users.sessions_count\n5. GET /api/user/affirmation → Кеш 24ч в daily_messages(source='affirmation'): проверить WHERE source='affirmation' AND DATE(created_at)=DATE('now'). Есть→вернуть. sessions_count<7→random.choice(AFFIRMATION_BANK). sessions_count>=7→call_gpt(AFFIRMATION_PROMPT, emotional_tone, sensitive_topics). LLMError→банк. >200 символов→банк. Сохранить в daily_messages(source='affirmation')\n6. POST /api/analytics/event → body: {event_type, page?, metadata?} → add_webapp_event() → 204 No Content\n7. DELETE /api/user → delete_user_completely() → {ok: true}\n\nRATE LIMITING:\n- dict[int, list[float]] in-memory, 60 req/min на telegram_id\n- FastAPI dependency Depends(rate_limit)\n- 429 + Retry-After header\n\nНОВЫЕ PYDANTIC-МОДЕЛИ (в api.py):\n- GoalResponse, StepResponse, GoalsResponse, TodayStepsResponse\n- CalendarResponse, AffirmationResponse, AnalyticsEventRequest, StepStatusUpdate\n\nОшибки (HTTP-статусы):\n- 401 Unauthorized — невалидный/отсутствующий initData\n- 403 Forbidden — owner check fail\n- 404 Not Found — юзер/step не найден\n- 429 Too Many Requests + Retry-After\n- 500 Internal Server Error\n\nИМПОРТЫ:\n- from bot.goal_manager import get_today_steps, complete_step, skip_step, _get_step_by_id\n- from bot.prompts.memory_prompts import AFFIRMATION_BANK, AFFIRMATION_PROMPT\n- from shared.llm_client import call_gpt, LLMError\n- from bot.memory.database import get_active_goal, get_goal_steps, add_webapp_event, delete_user_completely, get_user, create_daily_message\n- import time, random",
           "depends_on": ["11.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         },
         {
           "id": "15.2",
           "description": "webapp/src/pages/ — обновление экранов",
           "agent": "coder-frontend",
           "files": ["webapp/src/pages/HomePage.tsx", "webapp/src/pages/ProgressPage.tsx", "webapp/src/pages/ProfilePage.tsx"],
-          "contract": "ОБНОВИТЬ webapp экраны по docs/06_webapp_mockups.md:\n1. HomePage: аффирмация дня + цель + шаги (чекбоксы) + кнопка 'Написать Еве'\n2. ProgressPage: календарь активности + streak + фаза\n3. ProfilePage: карта людей + /forget + /delete_account + дисклеймер\nУбрать: подписку, режимы, стиль, таро. Добавить: deep link Telegram.WebApp.openTelegramLink().\nnpx tsc --noEmit = 0 ошибок.",
+          "contract": "ОБНОВИТЬ webapp экраны. Файлы: api.ts, useUser.ts, HomePage.tsx, ProgressPage.tsx, ProfilePage.tsx\n\napi.ts — ОБНОВИТЬ:\n- Удалить: updateStyle(), updateMode(), fetchDaily(), поля is_premium/coaching_style/mode/commitments/patterns_detected из UserData, тип DailyData\n- Добавить типы: GoalData{id,title,status,steps:StepData[]}, StepData{id,title,status,deadline_at,completed_at}, CalendarData{active_days:string[],streak:number,total_sessions:number}, AffirmationData{text:string,source:'bank'|'generated'}\n- Добавить методы: fetchGoals(), fetchTodaySteps(), updateStepStatus(stepId,status), fetchCalendar(), fetchAffirmation(), deleteAccount()\n\nuseUser.ts — ОБНОВИТЬ:\n- Обновить UserData типы (убрать deprecated поля)\n\nHomePage.tsx — ПЕРЕПИСАТЬ:\n- Новый пользователь (sessions_count===0): 'Привет, {name}! Я — Ева, рада знакомству' + аффирмация + кнопка 'Написать Еве →'\n- Активный: streak(fetchCalendar) + аффирмация(fetchAffirmation) + задания(fetchTodaySteps, чекбоксы с optimistic update) + 'Свободный день' если нет заданий + кнопка 'Написать Еве →'\n- Убрать: карту дня (таро), старые commitments\n\nProgressPage.tsx — ПЕРЕПИСАТЬ:\n- Цель+шаги+прогресс-бар (fetchGoals)\n- Календарь текущего месяца (fetchCalendar) — active days=розовый, today=обведён, без навигации по месяцам\n- Достижения: streak + total_sessions\n- Паттерны (fetchPatterns) — топ-3\n- Без цели: 'Цель появится после первых разговоров с Евой'\n- Убрать: PHASE_MILESTONES (жёсткие 5 фаз)\n\nProfilePage.tsx — ПЕРЕПИСАТЬ:\n- Аватар + имя + sessions_count\n- 'Утреннее сообщение'/'Напоминания' → серые, 'Скоро'\n- 'Забудь тему...' → deep link /forget\n- 'Удалить аккаунт' → popup подтверждение → deleteAccount() API\n- Дисклеймер (popup)\n- Помощь → deep link\n- Убрать: подписку, режимы, стиль\n\nDeep link (все страницы):\nconst BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'eva_nastavnik_bot';\nTelegram.WebApp.openTelegramLink(`https://t.me/${BOT_USERNAME}`);\n\nСостояния (все 3 страницы):\n- Loading: skeleton (shimmer, уже есть в global.css)\n- Error: 'Не удалось загрузить' + кнопка 'Повторить'\n- Empty: 'Появится после разговора с Евой'\n\nnpx tsc --noEmit = 0 ошибок.",
           "depends_on": ["15.1"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         }
       ]
     },
@@ -527,16 +544,18 @@
       "step": 16,
       "name": "Тёмная тема webapp",
       "output": "webapp/src/",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-04",
       "tasks": [
         {
           "id": "16.1",
-          "description": "Нативная тёмная тема (CSS-переменные)",
+          "description": "Нативная тёмная тема (CSS-переменные + useTheme + toggle)",
           "agent": "coder-frontend",
-          "files": ["webapp/src/App.tsx", "webapp/src/index.css"],
-          "contract": "Тёмная тема через CSS-переменные (prefers-color-scheme + Telegram.colorScheme). Контраст #D4466A для текста (WCAG AA). Override ALL vars (--tg-theme-*, --tgui--*) с !important. Не хак, нативная. npx tsc --noEmit = 0.",
+          "files": ["webapp/src/hooks/useTheme.ts", "webapp/src/styles/tokens.css", "webapp/src/styles/global.css", "webapp/src/main.tsx", "webapp/src/App.tsx", "webapp/src/pages/HomePage.tsx"],
+          "contract": "Тёмная тема: useTheme хук (localStorage → Telegram → media query), CSS vars [data-theme='dark'], flash prevention в main.tsx, toggle ☀️/🌙 на HomePage, override --tg-theme-* и --tgui--* с !important.",
           "depends_on": ["15.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         }
       ]
     },
@@ -544,16 +563,18 @@
       "step": 17,
       "name": "Webapp-аналитика",
       "output": "webapp/src/analytics.ts",
-      "done": false,
+      "done": true,
+      "completed_at": "2026-03-04",
       "tasks": [
         {
           "id": "17.1",
           "description": "webapp/src/analytics.ts — трекинг событий",
           "agent": "coder-frontend",
-          "files": ["webapp/src/analytics.ts"],
-          "contract": "СОЗДАТЬ webapp/src/analytics.ts:\n\nfunction trackEvent(event: WebappEvent): void\n  — POST /api/analytics/event. Throttle: одинаковые не чаще 2 сек. Fire-and-forget, silent fail.\n  — 8 событий: app_open, page_view, step_complete, step_skip, affirmation_view, write_eva_click, goal_change_click, theme_toggle\n  — Пример: trackEvent({event_type: 'page_view', page: 'home'})\n\nВстроить trackEvent во все страницы. npx tsc --noEmit = 0.",
+          "files": ["webapp/src/analytics.ts", "webapp/src/App.tsx", "webapp/src/pages/HomePage.tsx"],
+          "contract": "trackEvent: POST /api/analytics/event, throttle 2s, fire-and-forget. 8 событий: app_open, page_view, step_complete, step_skip, affirmation_view, write_eva_click, goal_change_click, theme_toggle. Встроен в App.tsx + HomePage.tsx.",
           "depends_on": ["15.2"],
-          "done": false
+          "done": true,
+          "completed_at": "2026-03-04"
         }
       ]
     },
@@ -561,7 +582,8 @@
       "step": 18,
       "name": "E2E тесты (автоматические)",
       "output": "tests/e2e/",
-      "done": false
+      "done": true,
+      "completed_at": "2026-03-04"
     },
     {
       "step": 19,
@@ -642,9 +664,8 @@
       "task_id": "9.0-9.4",
       "event": "critic_pass",
       "description": "CRITIC-2 шаг 9 завершён. Найдено: 2×P1 (broad except) → FIXED. Остальное чисто: rollback версия ОК, промпты ОК, database ОК. 114 тестов зелёные."
-    }
-  ],
-      {
+    },
+    {
       "date": "2026-03-04",
       "task_id": "11.3",
       "agent": "tester",

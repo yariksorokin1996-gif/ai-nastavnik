@@ -4,7 +4,6 @@
 import asyncio
 import logging
 import os
-import signal
 
 import uvicorn
 from telegram import MenuButtonWebApp, WebAppInfo
@@ -16,8 +15,8 @@ from telegram.ext import (
 from backend.api import app as fastapi_app
 from bot.handlers import (
     start, help_command, status_command, patterns_command,
-    style_command, style_choice, reset_command, handle_voice,
-    handle_message, app_command,
+    handle_voice, handle_message, handle_other_media,
+    callback_handler, app_command,
 )
 from bot.scheduler import setup_scheduler
 from bot.memory.database import init_db
@@ -43,16 +42,22 @@ async def _setup_bot() -> Application:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CommandHandler("patterns", patterns_command))
-    app.add_handler(CommandHandler("style", style_command))
-    app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CommandHandler("app", app_command))
 
-    # Inline кнопки
-    app.add_handler(CallbackQueryHandler(style_choice, pattern="^style_"))
+    # Единый обработчик inline-кнопок
+    app.add_handler(CallbackQueryHandler(callback_handler))
 
-    # Голосовые и текстовые сообщения
+    # Голосовые сообщения
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
+
+    # Все текстовые сообщения
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Прочие медиа (фото, стикеры, документы и т.д.)
+    app.add_handler(MessageHandler(
+        filters.ALL & ~filters.TEXT & ~filters.VOICE & ~filters.COMMAND,
+        handle_other_media,
+    ))
 
     # Обработчик ошибок
     async def error_handler(update, context):
@@ -66,6 +71,10 @@ async def _setup_bot() -> Application:
     # Инициализируем бота
     await app.initialize()
     await app.start()
+
+    # Alerter
+    from bot.analytics.alerter import alerter
+    alerter.init(app.bot)
 
     # Menu Button с Mini App
     if WEBAPP_URL:

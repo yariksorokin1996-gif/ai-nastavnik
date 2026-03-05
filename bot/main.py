@@ -1,11 +1,10 @@
-import asyncio
 import logging
 from telegram import MenuButtonWebApp, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from bot.handlers import (
     start, help_command, status_command, patterns_command,
-    style_command, style_choice, reset_command, handle_voice, handle_message,
-    app_command,
+    handle_voice, handle_message, handle_other_media,
+    callback_handler, app_command,
 )
 from bot.scheduler import setup_scheduler
 from bot.memory.database import init_db
@@ -35,6 +34,9 @@ async def post_init(app: Application):
         except Exception as e:
             logger.warning(f"Не удалось установить Menu Button: {e}")
 
+    from bot.analytics.alerter import alerter
+    alerter.init(app.bot)
+
 
 async def error_handler(update, context):
     logger.error(f"Exception: {context.error}", exc_info=context.error)
@@ -56,18 +58,22 @@ def main():
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CommandHandler("patterns", patterns_command))
-    app.add_handler(CommandHandler("style", style_command))
-    app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CommandHandler("app", app_command))
 
-    # Выбор стиля через inline кнопки
-    app.add_handler(CallbackQueryHandler(style_choice, pattern="^style_"))
+    # Единый обработчик inline-кнопок
+    app.add_handler(CallbackQueryHandler(callback_handler))
 
     # Голосовые сообщения
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
 
     # Все текстовые сообщения
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Прочие медиа (фото, стикеры, документы и т.д.)
+    app.add_handler(MessageHandler(
+        filters.ALL & ~filters.TEXT & ~filters.VOICE & ~filters.COMMAND,
+        handle_other_media,
+    ))
 
     # Глобальный обработчик ошибок
     app.add_error_handler(error_handler)

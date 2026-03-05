@@ -1,7 +1,7 @@
 # AI Наставник — STATE.md
 
 ## Фаза: АРХИТЕКТУРА (Фаза 2)
-## Подэтап: Шаги 0-11 завершены. Следующий: шаг 12 (session_manager + full_memory_update + handlers)
+## Подэтап: Шаги 0-18 завершены. Следующий: шаг 19 (деплой)
 
 ## ТЗ
 MVP тестируем на **10 друзьях**. Без подписки. Webapp включён. Тёмная тема включена.
@@ -280,11 +280,113 @@ specs/
 10. ~~**Шаг 9:** Ядро памяти — profile + episodes + procedural~~ ✅ (CRITIC-2 пройден)
 11. ~~**Шаг 10:** Контекст и промпт — context_builder + system_prompt + memory_prompts~~ ✅ (CRITIC-2 + аудит)
 12. ~~**Шаг 11:** Фазы и цели — phase_evaluator + goal_manager~~ ✅ (CRITIC-2 пройден)
-13. **Шаг 12:** Главный мотор — session_manager + full_memory_update + handlers ← СЛЕДУЮЩИЙ
-14. После шага 12 → шаг 13 (daily_messenger)
+13. ~~**Шаг 12:** Главный мотор — session_manager + full_memory_update + handlers~~ ✅
+14. ~~**Шаг 13:** daily_messenger~~ ✅ (CRITIC-2 пройден)
+15. ~~**Шаг 14:** alerter + feedback_collector + reports~~ ✅ (CRITIC-2 пройден)
+16. ~~**Шаг 15:** Webapp: API endpoints + экраны~~ ✅
+17. ~~**Шаг 16:** Тёмная тема webapp~~ ✅
+18. ~~**Шаг 17:** Webapp-аналитика~~ ✅
+19. ~~**Шаг 18:** E2E тесты~~ ✅
+
+### Шаг 12: Главный мотор (сессия 04.03.2026)
+- ✅ **database.py патч** — delete_user_data + delete_user_completely (+3 теста)
+- ✅ **CRISIS_VERIFICATION_PROMPT** добавлен в memory_prompts.py
+- ✅ **safety.py переписан** — async detect_crisis + 3 уровня + LLM-верификация (+8 тестов)
+- ✅ **full_memory_update.py создан** — 5 шагов, дубль-защита эпизодов, error counter (+10 тестов)
+- ✅ **session_manager.py переписан** — 14-шаговый конвейер, 10 UX-исправлений (+24 теста):
+  - Мьютекс + idempotency + rate limit (тёплое сообщение)
+  - Кризис L3 → шаблон без Claude, L2 → инструкция в промпт
+  - Обрезка ответа до 4000 символов, разнообразные fallback-ы
+  - Пост-кризисный контекст, mini-update (regex: имена/возраст/эмоции/обязательства)
+  - Фазовые переходы каждые 10 сообщений (async, fire-and-forget)
+- ✅ **handlers.py переписан** — убраны style/mode/reset, добавлены (+12 тестов):
+  - /start: тёплое приветствие Евы + дисклеймер
+  - /forget, /delete_account: 2-шаговое подтверждение через inline-кнопки
+  - handle_other_media: "умею только текст и голосовые"
+  - Typing indicator перед ответом
+  - Callback handler: forget/delete confirm + feeling/enact feedback
+- ✅ **215 тестов всего**, все зелёные (4.9с)
+- ✅ **ruff check** — 0 ошибок
+- ✅ **Верификация**: grep "Алекс"=0, grep "style_choice/MODE_KEYBOARD"=0, все импорты ОК
+
+### Шаг 13: daily_messenger (сессия 04.03.2026)
+- ✅ **DAILY_MESSAGE_PROMPT + FALLBACK_DAILY_MESSAGES** добавлены в memory_prompts.py
+- ✅ **database.py патч** — колонка source в daily_messages, create_daily_message(source=), has_daily_today()
+- ✅ **daily_messenger.py создан** — 3 функции:
+  - generate_daily_message: GPT-4o-mini, fallback, обрезка 500 символов
+  - send_daily_messages: 5 guards (messages_total, idempotency, cooldown 2ч, СТОП 3 дня, 48ч после 7 дней)
+  - check_silence: 4 guards (messages_total, cooldown 6ч, триггер 24ч, СТОП 3 дня)
+- ✅ **scheduler.py переписан** — 3 задачи (daily 19:00 MSK, silence каждые 6ч, memory_update каждые 5 мин)
+- ✅ **13 тестов** — все зелёные
+- ✅ **228 тестов всего** — все зелёные (5.0с)
+- ✅ **ruff check** — 0 ошибок
+- ✅ **CRITIC-2:** PASS (0 P0, 5 P1 → 4 FIXED + 1 known issue)
+  - FIXED: truncation safety, +3 теста (Guard 4, zero_messages, truncation)
+  - Known issue: has_daily_today UTC-дата при ночном рестарте (cooldown 2ч защищает)
+
+### Шаг 14: Аналитика (сессия 04.03.2026)
+- ✅ **alerter.py** — класс Alerter, дедупликация алертов, 4 типа событий, синглтон
+- ✅ **feedback_collector.py** — ask_feeling (5 условий + тихие часы) + ask_enactment (3 условия)
+- ✅ **daily_report.py** — 12 метрик за вчера, graceful degradation (каждая секция в try/except)
+- ✅ **weekly_report.py** — retention D1/D3/D7, North Star, LLM-анализ per user, анонимизация
+- ✅ **scheduler.py** — 6 jobs (daily_messages, silence, memory_update, feedback, daily_report, weekly_report)
+- ✅ **Интеграция:** alerter в session_manager (5 вызовов), callback handlers в handlers.py, alerter.init в main.py
+- ✅ **mark_daily_responded** — интегрирован в session_manager.py:260-273
+- ✅ **20 тестов** — 6 alerter + 8 feedback + 3 daily + 3 weekly, все зелёные
+- ✅ **CRITIC-2:** PASS (0 P0, 1 P1 → FIXED max_tokens 500→1000, 3 P2 → SKIP)
+- ✅ **248 тестов всего** — все зелёные
+
+### Шаг 15: Webapp API + экраны (сессия 04.03.2026)
+- ✅ **backend/api.py переписан** — 8 endpoints + rate limiting + auth + owner check (~497 строк)
+  - GET /api/user/goals, GET /api/user/goals/today, PUT /api/user/goals/steps/{step_id}
+  - GET /api/user/calendar (streak + active days), GET /api/user/affirmation (банк → GPT)
+  - POST /api/analytics/event, DELETE /api/user
+  - Rate limiting 60 req/min, Pydantic-модели, SPA fallback
+- ✅ **24 теста API** — все зелёные
+- ✅ **webapp/src/api.ts** — типы + методы для всех endpoints
+- ✅ **HomePage.tsx** — новый/активный пользователь, streak, аффирмация, задания (optimistic update)
+- ✅ **ProgressPage.tsx** — цель+шаги+прогресс, календарь, достижения, паттерны
+- ✅ **ProfilePage.tsx** — аватар+имя, настройки (скоро), забыть/удалить аккаунт, дисклеймер
+- ✅ **272 теста всего**, TypeScript 0 ошибок
+
+### Шаг 16: Тёмная тема (сессия 04.03.2026)
+- ✅ **useTheme.ts создан** — хук: localStorage → Telegram.colorScheme → prefers-color-scheme
+  - applyTheme(): data-theme attr + --tg-theme-* + --tgui--* с !important + body colors + Telegram API colors
+  - Слушает themeChanged (только без ручного override)
+  - getInitialTheme() для sync flash prevention в main.tsx
+- ✅ **tokens.css** — [data-theme="dark"] блок (11 переменных)
+- ✅ **global.css** — убран FORCE LIGHT THEME (40 строк), все хардкоды → CSS vars
+- ✅ **main.tsx** — sync theme detection до React render (flash prevention)
+- ✅ **App.tsx** — AppRoot appearance={theme}, useTheme() подключён
+- ✅ **HomePage.tsx** — toggle ☀️/🌙 (pill-shape, анимированный) вверху справа
+- ✅ **TypeScript** 0 ошибок
+
+### Шаг 17: Webapp-аналитика (сессия 04.03.2026)
+- ✅ **analytics.ts создан** — trackEvent: POST /api/analytics/event, throttle 2s, fire-and-forget, dev=console.debug
+- ✅ **8 событий:** app_open, page_view, step_complete, step_skip, affirmation_view, write_eva_click, goal_change_click, theme_toggle
+- ✅ **Встроен в:** App.tsx (app_open, page_view), HomePage.tsx (все остальные)
+- ✅ **272 теста всего**, TypeScript 0 ошибок
+
+### Шаг 18: E2E тесты (сессия 04.03.2026)
+- ✅ **9 E2E тестов** — реальная БД (17 таблиц) + мокированные LLM (8 точек патча):
+  - E2E-1: Первое сообщение нового пользователя (pipeline + idempotency)
+  - E2E-2: Полное обновление памяти (5 msg → пауза → episode + profile)
+  - E2E-3: Фазовый переход ЗНАКОМСТВО → ЗЕРКАЛО (10-е сообщение, LLM-оценка)
+  - E2E-4a: Цели + API /goals/today (create_goal → generate_steps → GET)
+  - E2E-4b: Цели + API /goals (GoalsResponse формат)
+  - E2E-5: Контекст с паузой ("Пауза 2 ч." в system prompt)
+  - E2E-6: Daily report (12 секций, raw SQL данные за вчера)
+  - E2E-7: Full pipeline (memory → ask_feeling → feedback в БД)
+  - E2E-8: Alerter при 3 ошибках build_context
+- ✅ **2 бага найдены и исправлены в продакшн-коде:**
+  - **alerter.py:** дедупликация `_last_alert.get(key, 0.0)` подавляла первый алерт при `time.monotonic() < window` → исправлено на `get(key)` + `if last is not None`
+  - **backend/api.py:** `StepResponse.deadline_at: str` vs `GoalStep.deadline_at: datetime` → добавлен `.strftime()` в GET /goals/today и PUT /steps/{id}
+- ✅ **CRITIC-2:** 0 P0 (исправлены), 3 P1 (кризисный E2E, PUT step E2E, asyncio cleanup — для будущих шагов)
+- ✅ **281 тестов всего** (272 unit + 9 e2e), все зелёные (6.0с)
+- ✅ **ruff check** — 0 ошибок
 
 ## Нерешённые вопросы
-Нет. Все стоп-факторы из аудита закрыты.
+- Timezone = фиксированно MSK (достаточно для 10 тестеров)
 
 ## Файлы плана
 - Основной: `docs/plan.md` (v5.3 — 12 дыр закрыты)

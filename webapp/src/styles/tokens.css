@@ -8,6 +8,10 @@
   --accent: #FF6B8A;
   --accent-green: #34C759;
   --separator: rgba(60, 60, 67, 0.12);
+  --tap-highlight: rgba(0, 0, 0, 0.04);
+  --skeleton-base: #E5E5EA;
+  --skeleton-shine: #F2F2F7;
+  --shadow-tabbar: 0 4px 24px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.08);
 
   /* --- Отступы и скругления --- */
   --page-padding: 20px;
@@ -20,4 +24,20 @@
   --safe-top: var(--tg-content-safe-area-inset-top, 0px);
   --safe-bottom: var(--tg-safe-area-inset-bottom, 0px);
   --viewport-height: var(--tg-viewport-stable-height, 100vh);
+}
+
+/* --- Тёмная тема --- */
+[data-theme="dark"] {
+  --bg: #1C1C1E;
+  --bg-card: #2C2C2E;
+  --text: #FFFFFF;
+  --text-secondary: #AEAEB2;
+  --text-tertiary: #636366;
+  --accent: #FF6B8A;
+  --accent-green: #30D158;
+  --separator: rgba(255, 255, 255, 0.12);
+  --tap-highlight: rgba(255, 255, 255, 0.08);
+  --skeleton-base: #3A3A3C;
+  --skeleton-shine: #48484A;
+  --shadow-tabbar: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
 }

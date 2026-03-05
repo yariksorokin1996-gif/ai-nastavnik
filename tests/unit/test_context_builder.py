@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from shared.models import ContextMeta, Episode
+from shared.models import Episode
 
 
 # ---------------------------------------------------------------------------

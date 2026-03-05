@@ -1,20 +1,89 @@
-import { useState, useEffect } from 'react';
-import { fetchDaily, type DailyData } from '../api';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  fetchAffirmation,
+  fetchCalendar,
+  fetchTodaySteps,
+  updateStepStatus,
+  type AffirmationData,
+  type CalendarData,
+  type TodayStepsData,
+  type StepData,
+} from '../api';
 import type { UserState } from '../hooks/useUser';
+import { trackEvent } from '../analytics';
+
+const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'eva_nastavnik_bot';
 
 interface HomePageProps {
   userState: UserState;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
 }
 
-export function HomePage({ userState }: HomePageProps) {
+export function HomePage({ userState, theme, onToggleTheme }: HomePageProps) {
   const { user, loading, error, retry } = userState;
-  const [daily, setDaily] = useState<DailyData | null>(null);
-  const [cardRevealed, setCardRevealed] = useState(false);
-  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
 
+  const [affirmation, setAffirmation] = useState<AffirmationData | null>(null);
+  const [calendar, setCalendar] = useState<CalendarData | null>(null);
+  const [todaySteps, setTodaySteps] = useState<TodayStepsData | null>(null);
+  const [stepErrors, setStepErrors] = useState<Record<number, string>>({});
+
+  const isNewUser = (user?.sessions_count ?? 0) === 0;
+
+  // Load data when user is available
   useEffect(() => {
-    fetchDaily().then(setDaily).catch(() => {});
+    if (!user) return;
+
+    fetchAffirmation().then((a) => { setAffirmation(a); trackEvent({ event_type: 'affirmation_view', page: 'home' }); }).catch(() => {});
+
+    if (!isNewUser) {
+      fetchCalendar().then(setCalendar).catch(() => {});
+      fetchTodaySteps().then(setTodaySteps).catch(() => {});
+    }
+  }, [user, isNewUser]);
+
+  const handleOpenChat = useCallback(() => {
+    trackEvent({ event_type: 'write_eva_click', page: 'home' });
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.openTelegramLink(`https://t.me/${BOT_USERNAME}`);
+    }
   }, []);
+
+  const handleToggleStep = useCallback(async (step: StepData) => {
+    if (!todaySteps) return;
+
+    const newStatus: 'done' | 'skipped' = step.status === 'done' ? 'skipped' : 'done';
+
+    // Optimistic update
+    const prevSteps = todaySteps;
+    const updatedSteps = todaySteps.steps.map((s) =>
+      s.id === step.id ? { ...s, status: newStatus } : s,
+    );
+    const completedCount = updatedSteps.filter((s) => s.status === 'done').length;
+    setTodaySteps({
+      steps: updatedSteps,
+      completed_count: completedCount,
+      total_count: todaySteps.total_count,
+    });
+    setStepErrors((prev) => {
+      const next = { ...prev };
+      delete next[step.id];
+      return next;
+    });
+
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+    trackEvent({ event_type: newStatus === 'done' ? 'step_complete' : 'step_skip', page: 'home', metadata: { step_id: step.id } });
+
+    try {
+      await updateStepStatus(step.id, newStatus);
+    } catch {
+      // Rollback
+      setTodaySteps(prevSteps);
+      setStepErrors((prev) => ({ ...prev, [step.id]: 'Не удалось обновить' }));
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
+    }
+  }, [todaySteps]);
 
   // Loading
   if (loading) {
@@ -33,70 +102,54 @@ export function HomePage({ userState }: HomePageProps) {
     return (
       <div className="error-state">
         <div className="error-state__emoji">😔</div>
-        <div className="error-state__text">Не удалось загрузить данные</div>
+        <div className="error-state__text">Не удалось загрузить</div>
         <button className="error-state__btn" onClick={retry}>Повторить</button>
       </div>
     );
   }
 
   const firstName = user?.name || window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '';
-  const streak = daily?.streak || 0;
-  const sessionsCount = daily?.sessions_count || user?.sessions_count || 0;
-  const isNewUser = sessionsCount === 0;
+  const streak = calendar?.streak ?? 0;
 
-  const commitments = daily?.commitments || user?.commitments || [];
-  const currentTask = commitments[currentTaskIndex];
-
-  const handleOpenChat = () => {
-    window.Telegram?.WebApp?.close();
-  };
-
-  const handleTaskDone = () => {
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-    if (currentTaskIndex < commitments.length - 1) {
-      setCurrentTaskIndex(currentTaskIndex + 1);
-    } else {
-      setCurrentTaskIndex(commitments.length); // all done
-    }
-  };
+  const themeToggle = (
+    <button
+      className={`theme-toggle ${theme === 'dark' ? 'theme-toggle--dark' : ''}`}
+      onClick={() => { onToggleTheme(); trackEvent({ event_type: 'theme_toggle', page: 'home', metadata: { to: theme === 'dark' ? 'light' : 'dark' } }); }}
+      aria-label="Переключить тему"
+    >
+      <span className="theme-toggle__knob">
+        {theme === 'dark' ? '🌙' : '☀️'}
+      </span>
+    </button>
+  );
 
   // ===== NEW USER =====
   if (isNewUser) {
     return (
       <>
-        <div className="page-title">
-          <h1>{firstName ? `Привет, ${firstName}!` : 'Привет!'}</h1>
-          <div className="subtitle">Я — твой AI-наставник. Помогу разобраться в себе и достичь целей</div>
+        <div className="page-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1>{firstName ? `Привет, ${firstName}!` : 'Привет!'}</h1>
+            <div className="subtitle">Я — Ева, рада знакомству</div>
+          </div>
+          {themeToggle}
         </div>
 
-        {/* Карта дня — первый интерактив */}
-        <div
-          className="feature-card"
-          onClick={() => !cardRevealed && setCardRevealed(true)}
-          style={cardRevealed ? { cursor: 'default' } : {}}
-        >
-          {!cardRevealed ? (
-            <>
-              <div className="feature-card__emoji">✦</div>
-              <div className="feature-card__title">Карта дня</div>
-              <div className="feature-card__desc">Нажми, чтобы открыть</div>
-            </>
-          ) : (
-            <>
-              <div className="feature-card__emoji">👑</div>
-              <div className="feature-card__title">Императрица</div>
-              <div className="feature-card__desc">
-                Императрица говорит о внутренней силе и решительности.
-                Сегодня ты способна на большее, чем думаешь.
+        {affirmation && (
+          <div className="section">
+            <div className="section-card">
+              <div className="affirmation-card">
+                <span className="affirmation-card__icon">✨</span>
+                <p className="affirmation-card__text">{affirmation.text}</p>
               </div>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        )}
 
         <button className="btn-primary" onClick={handleOpenChat}>
-          Начать знакомство →
+          Написать Еве →
         </button>
-        <div className="btn-hint">Откроется чат с наставником</div>
+        <div className="btn-hint">Откроется чат с Евой</div>
       </>
     );
   }
@@ -104,90 +157,74 @@ export function HomePage({ userState }: HomePageProps) {
   // ===== ACTIVE USER =====
   return (
     <>
-      <div className="page-title">
-        <h1>Привет, {firstName}!</h1>
-        <div className="subtitle">
-          {streak > 1 ? `Серия: ${streak} дней · Ты молодец!` : 'Рада тебя видеть!'}
+      <div className="page-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1>{firstName ? `Привет, ${firstName}!` : 'Привет!'}</h1>
+          <div className="subtitle">
+            {streak > 0 ? `🔥 ${streak} дней подряд` : 'Рада тебя видеть!'}
+          </div>
         </div>
+        {themeToggle}
       </div>
 
-      {/* Мысль дня */}
-      {daily?.recent_patterns && daily.recent_patterns.length > 0 && daily.recent_patterns[0].pattern_text ? (
+      {/* Аффирмация */}
+      {affirmation && (
         <div className="section">
-          <div className="section-header">Мысль дня</div>
           <div className="section-card">
-            <div className="cell">
-              <span className="cell-icon">✨</span>
-              <div className="cell-body">
-                <div className="cell-title" style={{ fontStyle: 'italic', fontSize: 15 }}>
-                  «{daily.recent_patterns[0].pattern_text}»
-                </div>
-              </div>
+            <div className="affirmation-card">
+              <span className="affirmation-card__icon">✨</span>
+              <p className="affirmation-card__text">{affirmation.text}</p>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="feature-card" onClick={() => !cardRevealed && setCardRevealed(true)} style={cardRevealed ? { cursor: 'default' } : {}}>
-          {!cardRevealed ? (
-            <>
-              <div className="feature-card__emoji">✦</div>
-              <div className="feature-card__title">Карта дня</div>
-              <div className="feature-card__desc">Нажми, чтобы открыть</div>
-            </>
-          ) : (
-            <>
-              <div className="feature-card__emoji">👑</div>
-              <div className="feature-card__title">Императрица</div>
-              <div className="feature-card__desc">
-                Императрица говорит о внутренней силе и решительности.
-                Сегодня ты способна на большее, чем думаешь.
-              </div>
-            </>
-          )}
-        </div>
       )}
 
-      {/* Текущее задание — ОДНО */}
-      <div className="section">
-        <div className="section-header">Задание</div>
-        <div className="section-card">
-          {currentTask && currentTaskIndex < commitments.length ? (
-            <div className="cell" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span className="cell-icon">🎯</span>
-                <div className="cell-body">
-                  <div className="cell-title">{currentTask.action}</div>
-                  {currentTask.deadline && (
-                    <div className="cell-subtitle">До: {currentTask.deadline}</div>
-                  )}
+      {/* Задания на сегодня */}
+      {todaySteps && todaySteps.steps.length > 0 ? (
+        <div className="section">
+          <div className="section-header">Задания на сегодня</div>
+          <div className="section-card">
+            {todaySteps.steps.map((step) => (
+              <div key={step.id}>
+                <div
+                  className="cell cell--tappable"
+                  onClick={() => handleToggleStep(step)}
+                >
+                  <span className="cell-icon">
+                    {step.status === 'done' ? '✅' : '○'}
+                  </span>
+                  <div className="cell-body">
+                    <div
+                      className="cell-title"
+                      style={step.status === 'done' ? { textDecoration: 'line-through', color: 'var(--text-secondary)' } : undefined}
+                    >
+                      {step.title}
+                    </div>
+                  </div>
                 </div>
+                {stepErrors[step.id] && (
+                  <div className="step-error">{stepErrors[step.id]}</div>
+                )}
               </div>
-              <button
-                className="btn-primary"
-                style={{ margin: 0, width: '100%' }}
-                onClick={handleTaskDone}
-              >
-                Выполнено ✓
-              </button>
-            </div>
-          ) : commitments.length > 0 ? (
-            <div className="placeholder">
-              <div className="placeholder__emoji">🎉</div>
-              <div className="placeholder__text">Все задания на сегодня выполнены!</div>
-            </div>
-          ) : (
-            <div className="placeholder">
-              <div className="placeholder__emoji">💬</div>
-              <div className="placeholder__text">Задание появится после разговора с наставником</div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : todaySteps && todaySteps.steps.length === 0 ? (
+        <div className="section">
+          <div className="section-header">Задания на сегодня</div>
+          <div className="section-card">
+            <div className="placeholder">
+              <div className="placeholder__emoji">☀️</div>
+              <div className="placeholder__text">Свободный день</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <button className="btn-primary" onClick={handleOpenChat}>
-        Написать наставнику →
+        Написать Еве →
       </button>
-      <div className="btn-hint">Откроется чат с наставником</div>
+      <div className="btn-hint">Откроется чат с Евой</div>
     </>
   );
 }

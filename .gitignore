@@ -9,3 +9,6 @@ __pycache__/
 *.egg-info/
 webapp/node_modules/
 webapp/dist/
+dispatcher/.env
+dispatcher/*.db
+dispatcher/logs/

@@ -1,46 +1,43 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, WebAppInfo
+from __future__ import annotations
+
+import logging
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes
+from telegram.constants import ChatAction
+
+from bot.memory.database import (
+    get_user,
+    get_patterns,
+    delete_user_data,
+    delete_user_completely,
+    update_feeling,
+    update_enactment,
+)
 from bot.session_manager import process_message
-from bot.memory.database import get_user, get_patterns, update_user
 from bot.transcriber import transcribe_voice
 from shared.config import WEBAPP_URL
 
-DISCLAIMER = (
-    "⚠️ *Важно:* Этот бот — инструмент коучинга, не психотерапия. "
-    "При серьёзных психологических проблемах обратись к специалисту."
+logger = logging.getLogger(__name__)
+
+START_MESSAGE = (
+    "Привет 💛 Я Ева.\n\n"
+    "Я не коуч, не терапевт — скорее подруга, "
+    "которая умеет слушать и запоминать.\n\n"
+    "Расскажи, что у тебя сейчас происходит?\n\n"
+    "ᵉᵛᵃ — не замена специалисту. "
+    "Если тебе нужна срочная помощь: 8-800-2000-122"
 )
 
-START_MESSAGE = """Привет. Я — AI-наставник.
-
-Помогаю разобраться с тем, что реально мешает — в деньгах, отношениях, жизни в целом.
-
-Прежде чем начать — выбери, как ты хочешь работать:
-
-{}""".format(DISCLAIMER)
-
-STYLE_KEYBOARD = InlineKeyboardMarkup([
-    [InlineKeyboardButton(
-        "🌿 Мягко — с поддержкой и теплом",
-        callback_data="style_1"
-    )],
-    [InlineKeyboardButton(
-        "⚖️ Сбалансировано — честно, но без давления",
-        callback_data="style_2"
-    )],
-    [InlineKeyboardButton(
-        "🔥 Жёстко — прямо, без сантиментов",
-        callback_data="style_3"
-    )],
-])
-
-MODE_KEYBOARD = ReplyKeyboardMarkup(
-    [["💬 Просто поболтать"]],
-    resize_keyboard=True,
-)
-
-MODE_KEYBOARD_SUPPORT = ReplyKeyboardMarkup(
-    [["🎯 Вернуться к работе"]],
-    resize_keyboard=True,
+HELP_MESSAGE = (
+    "Команды:\n"
+    "/start — начать сначала\n"
+    "/app — открыть приложение\n"
+    "/status — твой прогресс\n"
+    "/patterns — паттерны, которые я заметила\n"
+    "/forget — забыть всё обо мне (сообщения останутся)\n"
+    "/delete_account — удалить ВСЁ\n"
+    "/help — эта справка"
 )
 
 
@@ -55,78 +52,47 @@ def _webapp_keyboard():
         )],
     ])
 
-STYLE_NAMES = {
-    1: "Мягкий",
-    2: "Сбалансированный",
-    3: "Жёсткий",
-}
-
-HELP_MESSAGE = """*Команды:*
-/start — начать заново или сменить стиль
-/app — открыть приложение
-/status — твой текущий прогресс
-/style — сменить стиль работы
-/patterns — паттерны, которые я заметил
-/reset — начать с чистого листа
-/help — эта справка
-
-*Важно:*
-• Отвечай честно — я замечаю уклонения
-• Каждый разговор заканчивается конкретным действием
-• Утром спрошу что планируешь, вечером — сделала ли"""
-
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        START_MESSAGE,
-        parse_mode="Markdown",
-        reply_markup=STYLE_KEYBOARD,
-    )
+    """Команда /start — тёплое приветствие."""
+    await update.message.reply_text(START_MESSAGE)
 
 
-async def style_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /help — справка по командам."""
+    await update.message.reply_text(HELP_MESSAGE)
 
-    style_num = int(query.data.split("_")[1])
-    telegram_id = query.from_user.id
-    user_name = query.from_user.first_name or "друг"
 
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /status — прогресс пользователя."""
+    telegram_id = update.effective_user.id
     user = await get_user(telegram_id)
     if not user:
-        from bot.memory.database import create_user
-        user = await create_user(telegram_id, user_name)
+        await update.message.reply_text("Напиши /start чтобы начать.")
+        return
 
-    await update_user(telegram_id, coaching_style=style_num)
-
-    style_name = STYLE_NAMES[style_num]
-    style_descriptions = {
-        1: "Буду поддерживать, задавать мягкие вопросы и помогать тебе найти ответы самой.",
-        2: "Буду честным и прямым, но без давления. Поддержка и вызов в равных долях.",
-        3: "Буду говорить прямо, называть вещи своими именами и не принимать отговорки.",
-    }
-
-    await query.edit_message_text(
-        f"Выбран стиль: *{style_name}*\n\n"
-        f"{style_descriptions[style_num]}\n\n"
-        f"Стиль можно сменить в любой момент командой /style",
-        parse_mode="Markdown",
+    phase = user.get("current_phase", "ЗНАКОМСТВО")
+    messages_total = user.get("messages_total", 0)
+    text = (
+        f"Твой прогресс:\n\n"
+        f"Фаза: {phase}\n"
+        f"Сообщений: {messages_total}"
     )
+    await update.message.reply_text(text)
 
-    await context.bot.send_message(
-        chat_id=telegram_id,
-        text="Напиши мне о том, с чем хочешь разобраться.",
-        reply_markup=MODE_KEYBOARD,
-    )
 
-    # Показываем кнопку Mini App, если настроен
-    webapp_kb = _webapp_keyboard()
-    if webapp_kb:
-        await context.bot.send_message(
-            chat_id=telegram_id,
-            text="Или открой приложение — там прогресс, цели и астро-карта дня:",
-            reply_markup=webapp_kb,
-        )
+async def patterns_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /patterns — паттерны, замеченные Евой."""
+    telegram_id = update.effective_user.id
+    patterns = await get_patterns(telegram_id)
+    if not patterns:
+        await update.message.reply_text("Паттерны ещё не выявлены. Продолжай работать.")
+        return
+
+    lines = ["*Паттерны, которые я заметил:*\n"]
+    for p in patterns[:5]:
+        lines.append(f"• {p['pattern_text']} — встречалось {p['count']} раз")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
 async def app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -143,132 +109,143 @@ async def app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def style_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def forget_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /forget — забыть всё о пользователе (2-шаговое подтверждение)."""
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Да, забудь", callback_data="forget_confirm"),
+            InlineKeyboardButton("Нет, оставь", callback_data="forget_cancel"),
+        ],
+    ])
     await update.message.reply_text(
-        "Выбери стиль работы:",
-        reply_markup=STYLE_KEYBOARD,
+        "Удалить всё что я запомнила о тебе? Сообщения останутся.",
+        reply_markup=keyboard,
     )
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(HELP_MESSAGE, parse_mode="Markdown")
-
-
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_id = update.effective_user.id
-    user = await get_user(telegram_id)
-    if not user:
-        await update.message.reply_text("Напиши /start чтобы начать.")
-        return
-
-    phase_labels = {
-        "onboarding": "Знакомство",
-        "diagnosis": "Диагностика",
-        "goal": "Постановка цели",
-        "planning": "Составление плана",
-        "daily": "Ежедневная работа",
-    }
-    style_name = STYLE_NAMES.get(user.get("coaching_style", 2), "Сбалансированный")
-    text = (
-        f"*Твой прогресс:*\n\n"
-        f"Фаза: {phase_labels.get(user['phase'], user['phase'])}\n"
-        f"Цель: {user['goal'] or 'не поставлена'}\n"
-        f"Дедлайн: {user['goal_deadline'] or 'не установлен'}\n"
-        f"Сессий: {user['sessions_count']}\n"
-        f"Стиль: {style_name}\n"
-        f"Тариф: {'Про' if user['is_premium'] else 'Пробный'}"
-    )
-    await update.message.reply_text(text, parse_mode="Markdown")
-
-
-async def patterns_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_id = update.effective_user.id
-    patterns = await get_patterns(telegram_id)
-    if not patterns:
-        await update.message.reply_text("Паттерны ещё не выявлены. Продолжай работать.")
-        return
-
-    lines = ["*Паттерны, которые я заметил:*\n"]
-    for p in patterns[:5]:
-        lines.append(f"• {p['pattern_text']} — встречалось {p['count']} раз")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_id = update.effective_user.id
-    user = await get_user(telegram_id)
-    if not user:
-        await update.message.reply_text("Напиши /start чтобы начать.")
-        return
-    await update_user(telegram_id, phase="onboarding", sessions_count=0)
+async def delete_account_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /delete_account — удалить ВСЁ (2-шаговое подтверждение)."""
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Да, удалить аккаунт", callback_data="delete_confirm"),
+            InlineKeyboardButton("Нет", callback_data="delete_cancel"),
+        ],
+    ])
     await update.message.reply_text(
-        "Начинаем с чистого листа. Расскажи, с чем хочешь разобраться."
+        "Удалить ВСЁ — и сообщения, и данные? Это необратимо.",
+        reply_markup=keyboard,
     )
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик текстовых сообщений."""
+    telegram_id = update.effective_user.id
+    user_name = update.effective_user.first_name or None
+    user_text = update.message.text
+    message_id = update.message.message_id
+
+    if not user_text or not user_text.strip():
+        return
+
+    await context.bot.send_chat_action(chat_id=telegram_id, action=ChatAction.TYPING)
+
+    response = await process_message(
+        telegram_id=telegram_id,
+        message_id=message_id,
+        text=user_text,
+        user_name=user_name,
+    )
+
+    if response is not None:
+        await update.message.reply_text(response)
 
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик голосовых сообщений."""
     telegram_id = update.effective_user.id
-    user_name = update.effective_user.first_name or "друг"
+    user_name = update.effective_user.first_name or None
+    message_id = update.message.message_id
 
-    await context.bot.send_chat_action(chat_id=telegram_id, action="typing")
+    await context.bot.send_chat_action(chat_id=telegram_id, action=ChatAction.TYPING)
 
     try:
         voice_file = await context.bot.get_file(update.message.voice.file_id)
         voice_bytes = await voice_file.download_as_bytearray()
         user_text = await transcribe_voice(bytes(voice_bytes))
     except Exception:
-        await update.message.reply_text(
-            "Не смогла распознать голосовое. Попробуй ещё раз или напиши текстом."
-        )
+        await update.message.reply_text("Прости, не расслышала. Напиши текстом? 🙏")
         return
 
-    try:
-        response = await process_message(telegram_id, user_name, user_text)
-    except Exception:
-        await update.message.reply_text(
-            "Произошла ошибка, попробуй ещё раз через минуту."
-        )
-        return
+    response = await process_message(
+        telegram_id=telegram_id,
+        message_id=message_id,
+        text=user_text,
+        user_name=user_name,
+        is_voice=True,
+    )
 
+    if response is not None:
+        await update.message.reply_text(response)
+
+
+async def handle_other_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик фото, стикеров, документов и прочего."""
     await update.message.reply_text(
-        f"🎤 _{user_text}_\n\n{response}",
-        parse_mode="Markdown",
+        "Прости, я пока умею только читать текст и слушать голосовые 🙂 Напиши мне словами?"
     )
 
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_id = update.effective_user.id
-    user_name = update.effective_user.first_name or "друг"
-    user_text = update.message.text
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик inline-кнопок."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
 
-    if not user_text or not user_text.strip():
-        await update.message.reply_text("Напиши что-нибудь — я здесь.")
-        return
+    if data == "forget_confirm":
+        telegram_id = query.from_user.id
+        await delete_user_data(telegram_id)
+        await query.edit_message_text("Готово, я всё забыла. Начинаем с чистого листа 💛")
 
-    if user_text == "💬 Просто поболтать":
-        await update_user(telegram_id, mode="support")
-        await update.message.reply_text(
-            "Переключила в режим поддержки. Расскажи, что у тебя на душе.",
-            reply_markup=MODE_KEYBOARD_SUPPORT,
-        )
-        return
+    elif data == "forget_cancel":
+        await query.edit_message_text("Хорошо, оставляю всё как есть.")
 
-    if user_text == "🎯 Вернуться к работе":
-        await update_user(telegram_id, mode="coaching")
-        await update.message.reply_text(
-            "Возвращаемся к работе. На чём остановились?",
-            reply_markup=MODE_KEYBOARD,
-        )
-        return
+    elif data == "delete_confirm":
+        telegram_id = query.from_user.id
+        await delete_user_completely(telegram_id)
+        await query.edit_message_text("Все данные удалены. Если захочешь вернуться — /start")
 
-    await context.bot.send_chat_action(chat_id=telegram_id, action="typing")
+    elif data == "delete_cancel":
+        await query.edit_message_text("Хорошо, ничего не удаляю.")
 
-    try:
-        response = await process_message(telegram_id, user_name, user_text)
-    except Exception:
-        await update.message.reply_text(
-            "Произошла ошибка, попробуй ещё раз через минуту."
-        )
-        return
+    elif data.startswith("feeling:"):
+        parts = data.split(":")
+        if len(parts) == 3:
+            try:
+                feedback_id = int(parts[1])
+                value = int(parts[2])
+            except (ValueError, IndexError):
+                logger.warning("Invalid feeling callback data: %s", data)
+                return
+            await update_feeling(feedback_id, value)
+            responses = {
+                1: "Рада это слышать 💛",
+                2: "Понимаю, я рядом 🤍",
+                3: "Мне жаль. Если захочешь поговорить — я здесь 💙",
+            }
+            await query.edit_message_text(responses.get(value, "Спасибо 💛"))
 
-    await update.message.reply_text(response)
+    elif data.startswith("enact:"):
+        parts = data.split(":")
+        if len(parts) == 3:
+            try:
+                feedback_id = int(parts[1])
+                value = int(parts[2])
+            except (ValueError, IndexError):
+                logger.warning("Invalid enact callback data: %s", data)
+                return
+            await update_enactment(feedback_id, value)
+            responses = {
+                1: "Круто! 🎉",
+                0: "Ничего, попробуешь когда будешь готова 💛",
+            }
+            await query.edit_message_text(responses.get(value, "Записала! 💛"))

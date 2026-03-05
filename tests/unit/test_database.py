@@ -27,6 +27,8 @@ from bot.memory.database import (
     create_user,
     delete_old_messages,
     delete_old_webapp_events,
+    delete_user_completely,
+    delete_user_data,
     get_active_goal,
     get_all_users,
     get_episode_headers,
@@ -37,6 +39,7 @@ from bot.memory.database import (
     get_pending_facts,
     get_procedural,
     get_profile,
+    get_profile_version,
     get_recent_emotions,
     get_recent_messages,
     get_user,
@@ -731,3 +734,160 @@ async def test_retention_cleanup(test_db):
     await create_user(USER_ID)
     # Просто проверяем, что не бросает исключений
     await retention_cleanup(msg_days=90, events_days=90)
+
+
+# ===========================================================================
+# Патч 9.0 — get_profile_version, techniques в episodes
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_profile_version(test_db):
+    """upsert_profile 2 раза, get_profile_version(version=1) возвращает первую версию."""
+    await init_db()
+    await create_user(USER_ID)
+
+    profile_v1 = {"name": "Маша", "city": "Москва"}
+    profile_v2 = {"name": "Маша", "city": "Питер", "age": 30}
+
+    await upsert_profile(USER_ID, profile_v1, tokens_count=50)
+    await upsert_profile(USER_ID, profile_v2, tokens_count=80)
+
+    # Текущий профиль — v2
+    current = await get_profile(USER_ID)
+    assert current["version"] == 2
+
+    # Версия 1 — первая
+    v1 = await get_profile_version(USER_ID, version=1)
+    assert v1 is not None
+    assert v1 == profile_v1
+
+    # Несуществующая версия — None
+    v99 = await get_profile_version(USER_ID, version=99)
+    assert v99 is None
+
+
+@pytest.mark.asyncio
+async def test_create_episode_with_techniques(test_db):
+    """create_episode с techniques_worked_json и techniques_failed_json сохраняет данные."""
+    await init_db()
+    await create_user(USER_ID)
+
+    techniques_worked = ["отражение слов", "валидация"]
+    techniques_failed = ["давление на действие"]
+
+    ep_id = await create_episode(
+        USER_ID,
+        title="Тест техник",
+        summary="Проверка сохранения техник",
+        techniques_worked_json=techniques_worked,
+        techniques_failed_json=techniques_failed,
+    )
+    assert ep_id > 0
+
+    # Проверяем через raw SQL
+    async with aiosqlite.connect(test_db) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM episodes WHERE id=?", (ep_id,)) as cur:
+            row = await cur.fetchone()
+    data = dict(row)
+
+    import json
+    assert json.loads(data["techniques_worked_json"]) == techniques_worked
+    assert json.loads(data["techniques_failed_json"]) == techniques_failed
+
+
+@pytest.mark.asyncio
+async def test_get_episodes_by_ids_parses_techniques(test_db):
+    """get_episodes_by_ids парсит techniques_worked_json и techniques_failed_json как list."""
+    await init_db()
+    await create_user(USER_ID)
+
+    techniques_worked = ["мягкий вызов", "отражение"]
+    techniques_failed = ["два вопроса подряд"]
+
+    ep_id = await create_episode(
+        USER_ID,
+        title="Техники",
+        summary="Проверка парсинга",
+        techniques_worked_json=techniques_worked,
+        techniques_failed_json=techniques_failed,
+    )
+
+    episodes = await get_episodes_by_ids([ep_id])
+    assert len(episodes) == 1
+
+    ep = episodes[0]
+    assert isinstance(ep["techniques_worked_json"], list)
+    assert isinstance(ep["techniques_failed_json"], list)
+    assert ep["techniques_worked_json"] == techniques_worked
+    assert ep["techniques_failed_json"] == techniques_failed
+
+
+# ===========================================================================
+# Удаление данных пользователя
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_delete_user_data_keeps_user(test_db):
+    """delete_user_data удаляет профиль, но сохраняет user и messages."""
+    await init_db()
+    await create_user(USER_ID, name="Маша")
+    await upsert_profile(USER_ID, {"key": "value"}, tokens_count=100)
+    await add_message(USER_ID, "user", "Привет!")
+    await add_message(USER_ID, "assistant", "Привет, Маша!")
+
+    await delete_user_data(USER_ID)
+
+    # Пользователь остался
+    user = await get_user(USER_ID)
+    assert user is not None
+    assert user["telegram_id"] == USER_ID
+
+    # Профиль удалён
+    profile = await get_profile(USER_ID)
+    assert profile is None
+
+    # Сообщения остались
+    msgs = await get_recent_messages(USER_ID, limit=10)
+    assert len(msgs) == 2
+
+
+@pytest.mark.asyncio
+async def test_delete_user_data_resets_counters(test_db):
+    """После delete_user_data: current_phase='ЗНАКОМСТВО', messages_total=0."""
+    await init_db()
+    await create_user(USER_ID, name="Маша")
+    await update_user(USER_ID, current_phase="ЗЕРКАЛО", messages_total=42)
+
+    await delete_user_data(USER_ID)
+
+    user = await get_user(USER_ID)
+    assert user["current_phase"] == "ЗНАКОМСТВО"
+    assert user["messages_total"] == 0
+    assert user["needs_full_update"] == 0
+    assert user["last_full_update_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_delete_user_completely(test_db):
+    """delete_user_completely удаляет всё, включая запись в users."""
+    await init_db()
+    await create_user(USER_ID, name="Маша")
+    await add_message(USER_ID, "user", "Привет!")
+    await mark_message_processed(12345, USER_ID)
+    await upsert_profile(USER_ID, {"key": "value"}, tokens_count=100)
+
+    await delete_user_completely(USER_ID)
+
+    # Пользователь удалён
+    user = await get_user(USER_ID)
+    assert user is None
+
+    # Сообщения удалены
+    msgs = await get_recent_messages(USER_ID, limit=10)
+    assert len(msgs) == 0
+
+    # Processed messages удалены
+    assert await is_message_processed(12345) is False
