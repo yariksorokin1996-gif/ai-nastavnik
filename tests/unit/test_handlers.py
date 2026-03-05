@@ -232,6 +232,7 @@ async def test_handle_voice_transcription_fails(mock_transcribe: AsyncMock) -> N
     # Настраиваем voice-атрибут
     update.message.voice = MagicMock()
     update.message.voice.file_id = "test_file_id"
+    update.message.voice.duration = 30  # 30 секунд — в пределах лимита
 
     context = make_context()
     # get_file выбрасывает ошибку -> попадаем в except

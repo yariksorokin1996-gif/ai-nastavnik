@@ -603,7 +603,8 @@
       "step": 21,
       "name": "Деплой на Railway",
       "output": "Dockerfile, railway.toml",
-      "done": false
+      "done": true,
+      "completed_at": "2026-03-05"
     },
     {
       "step": 22,

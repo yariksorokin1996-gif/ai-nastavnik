@@ -11,7 +11,7 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
-CLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-sonnet-4-5-20250514')
+CLAUDE_MODEL = os.getenv('CLAUDE_MODEL_MAIN', 'claude-sonnet-4-5')
 GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o-mini')
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'nastavnik.db')

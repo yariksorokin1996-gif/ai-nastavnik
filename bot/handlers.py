@@ -89,7 +89,7 @@ async def patterns_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Паттерны ещё не выявлены. Продолжай работать.")
         return
 
-    lines = ["*Паттерны, которые я заметил:*\n"]
+    lines = ["*Паттерны, которые я заметила:*\n"]
     for p in patterns[:5]:
         lines.append(f"• {p['pattern_text']} — встречалось {p['count']} раз")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
@@ -165,6 +165,15 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
     user_name = update.effective_user.first_name or None
     message_id = update.message.message_id
+
+    # Проверка длительности: > 3 минут → мягкий отказ
+    duration = update.message.voice.duration or 0
+    if duration > 180:
+        await update.message.reply_text(
+            "Ой, это длинное сообщение 🙈 "
+            "Можешь записать покороче — до 3 минут? Или написать текстом."
+        )
+        return
 
     await context.bot.send_chat_action(chat_id=telegram_id, action=ChatAction.TYPING)
 
