@@ -499,5 +499,19 @@ WEBAPP_DIST = Path(__file__).resolve().parent.parent / "webapp" / "dist"
 
 if WEBAPP_DIST.is_dir():
     app.mount("/assets", StaticFiles(directory=WEBAPP_DIST / "assets"), name="assets")
-    # SPA fallback через mount (не конфликтует с API-роутами)
-    app.mount("/", StaticFiles(directory=WEBAPP_DIST, html=True), name="spa")
+
+    _SPA_INDEX = WEBAPP_DIST / "index.html"
+    _SPA_HEADERS = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+
+    @app.get("/")
+    async def spa_root():
+        return FileResponse(_SPA_INDEX, headers=_SPA_HEADERS)
+
+    @app.get("/progress")
+    @app.get("/profile")
+    async def spa_pages():
+        return FileResponse(_SPA_INDEX, headers=_SPA_HEADERS)
