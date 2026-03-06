@@ -498,25 +498,6 @@ async def download_db(key: str = ""):
 WEBAPP_DIST = Path(__file__).resolve().parent.parent / "webapp" / "dist"
 
 if WEBAPP_DIST.is_dir():
-    # Статические ассеты (JS, CSS, images)
     app.mount("/assets", StaticFiles(directory=WEBAPP_DIST / "assets"), name="assets")
-
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        """SPA fallback — отдаём index.html для всех не-API путей."""
-        # НЕ перехватывать API-маршруты
-        if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="Not found")
-        # Пробуем отдать конкретный файл
-        file_path = WEBAPP_DIST / full_path
-        if file_path.is_file():
-            return FileResponse(file_path)
-        # SPA fallback — index.html без кеша
-        return FileResponse(
-            WEBAPP_DIST / "index.html",
-            headers={
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0",
-            },
-        )
+    # SPA fallback через mount (не конфликтует с API-роутами)
+    app.mount("/", StaticFiles(directory=WEBAPP_DIST, html=True), name="spa")
