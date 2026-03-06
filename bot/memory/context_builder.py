@@ -38,7 +38,7 @@ async def _safe_call(fn, *args, **kwargs):
     try:
         return await fn(*args, **kwargs)
     except Exception as exc:
-        logger.warning("build_context: %s failed: %s", fn.__name__, exc)
+        logger.warning("build_context: %s failed: %s", getattr(fn, "__name__", str(fn)), exc)
         return None
 
 
@@ -163,6 +163,13 @@ def _truncate_context(
         sections["episodes"] = _format_episodes(raw_episodes, limit=2)
         truncated.append("episodes")
 
+    # Приоритет 4.5: running_summary — обрезать до 150 слов
+    if _total() > TOKEN_BUDGET_SOFT and sections.get("running_summary"):
+        words = sections["running_summary"].split()
+        if len(words) > 150:
+            sections["running_summary"] = " ".join(words[:150]) + "..."
+            truncated.append("running_summary")
+
     # Приоритет 5: profile — структурная обрезка (сначала strengths/achievements, потом с конца)
     if _total() > TOKEN_BUDGET_SOFT and sections.get("profile"):
         lines = sections["profile"].split("\n")
@@ -210,12 +217,15 @@ async def build_context(
     pause_minutes = _calc_pause(user.get("last_message_at"))
 
     # Шаг 2: параллельный сбор данных
-    profile_text, procedural_text, episodes, patterns, goal = await asyncio.gather(
-        _safe_call(get_profile_as_text, telegram_id),
-        _safe_call(get_procedural_as_text, telegram_id),
-        _safe_call(find_relevant_episodes, telegram_id, current_message, limit=3),
-        _safe_call(database.get_patterns, telegram_id),
-        _safe_call(database.get_active_goal, telegram_id),
+    profile_text, procedural_text, episodes, patterns, goal, running_summary = (
+        await asyncio.gather(
+            _safe_call(get_profile_as_text, telegram_id),
+            _safe_call(get_procedural_as_text, telegram_id),
+            _safe_call(find_relevant_episodes, telegram_id, current_message, limit=3),
+            _safe_call(database.get_patterns, telegram_id),
+            _safe_call(database.get_active_goal, telegram_id),
+            _safe_call(database.get_running_summary, telegram_id),
+        )
     )
 
     # Шаги цели (если есть)
@@ -232,6 +242,12 @@ async def build_context(
 
     sections["profile"] = profile_text if profile_text else _FALLBACK_PROFILE
     sections["procedural"] = procedural_text if procedural_text else _FALLBACK_PROCEDURAL
+
+    if running_summary:
+        sections["running_summary"] = f"=== СОДЕРЖАНИЕ РАЗГОВОРА ===\n{running_summary}"
+    else:
+        sections["running_summary"] = ""
+
     sections["episodes"] = _format_episodes(episodes or [], limit=3)
     sections["patterns"] = _format_patterns(patterns or [], limit=5)
     sections["commitments"] = _format_commitments(goal, steps)
@@ -267,7 +283,7 @@ async def build_context(
 
     # Шаг 7: сборка (base_prompt ПЕРВЫМ для prompt caching)
     order = [
-        "base_prompt", "profile", "procedural",
+        "base_prompt", "profile", "procedural", "running_summary",
         "episodes", "patterns", "commitments", "pause_context",
     ]
     parts = [sections[k] for k in order if sections.get(k)]

@@ -31,6 +31,7 @@ from bot.memory.database import (
     mark_message_processed,
     update_user,
 )
+from bot.memory.full_memory_update import update_single_user
 from bot.prompts.phase_evaluator import evaluate_phase
 from shared.config import (
     CLAUDE_TIMEOUT,
@@ -210,7 +211,7 @@ async def _process_under_lock(
         system_prompt += f"\n\n{CRISIS_INSTRUCTION_LEVEL2}"
 
     # UX #10: Post-crisis контекст
-    recent = await get_recent_messages(telegram_id, limit=5)
+    recent = await get_recent_messages(telegram_id, limit=12)
     if _was_recent_crisis(recent):
         system_prompt += (
             "\n\nПользовательница недавно была в кризисном состоянии. "
@@ -276,10 +277,12 @@ async def _process_under_lock(
     # --- Step 12: ASYNC mini memory update (fire-and-forget) ---
     asyncio.create_task(_mini_memory_update(telegram_id, text, response))
 
-    # --- Step 13: ASYNC phase check (every 10 messages) ---
+    # --- Step 13: ASYNC phase check + memory update (every 10 messages) ---
     messages_total = user.get("messages_total", 0) + 1
     if messages_total % 10 == 0:
         asyncio.create_task(_check_phase_transition(telegram_id))
+        # Триггер полного обновления памяти каждые 10 сообщений
+        asyncio.create_task(_trigger_memory_update(telegram_id))
 
     # --- Step 14: Update counters ---
     await update_user(
@@ -441,6 +444,18 @@ async def _mini_memory_update(
     except Exception:
         logger.warning(
             "mini_memory_update failed for user %s", telegram_id, exc_info=True,
+        )
+
+
+async def _trigger_memory_update(telegram_id: int) -> None:
+    """Запускает полное обновление памяти (fire-and-forget, каждые 10 msg)."""
+    try:
+        await update_user(telegram_id, needs_full_update=0)
+        await update_single_user(telegram_id)
+    except Exception:
+        logger.warning(
+            "trigger_memory_update failed for user %s",
+            telegram_id, exc_info=True,
         )
 
 

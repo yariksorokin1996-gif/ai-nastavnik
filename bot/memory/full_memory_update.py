@@ -25,7 +25,11 @@ from bot.memory import database
 from bot.memory import profile_manager
 from bot.memory import episode_manager
 from bot.memory import procedural_memory
-from bot.prompts.memory_prompts import PROFILE_UPDATE_PROMPT
+from bot.prompts.memory_prompts import (
+    PROFILE_UPDATE_PROMPT,
+    RUNNING_SUMMARY_COMPRESS_PROMPT,
+    RUNNING_SUMMARY_PROMPT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +59,33 @@ def _reset_error(tid: int) -> None:
 def _now() -> str:
     """UTC datetime строкой, совместимо с SQLite."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _format_messages(messages: list[dict], limit: int = 20) -> str:
+    """Форматирует сообщения для промпта running summary."""
+    return "\n".join(
+        f"{m['role']}: {m['content']}" for m in messages[-limit:]
+    )
+
+
+async def _update_running_summary(old_summary: str, messages: list[dict]) -> str:
+    """Обновляет running summary через GPT-4o-mini. Сжимает если > 400 слов."""
+    prompt = RUNNING_SUMMARY_PROMPT.format(
+        current_summary=old_summary or "(пусто)",
+        new_messages=_format_messages(messages),
+    )
+    new_summary = await call_gpt(
+        messages=[{"role": "user", "content": prompt}],
+        timeout=15,
+    )
+    if len(new_summary.split()) > 400:
+        compress_prompt = RUNNING_SUMMARY_COMPRESS_PROMPT.format(summary=new_summary)
+        new_summary = await call_gpt(
+            messages=[{"role": "user", "content": compress_prompt}],
+            timeout=15,
+        )
+        logger.info("Running summary compressed for shorter version")
+    return new_summary
 
 
 def _format_facts(facts: list[dict] | None) -> str:
@@ -178,6 +209,16 @@ async def update_single_user(telegram_id: int) -> FullUpdateResult:
     except LLMError as exc:
         result.error = str(exc)
         return result  # без эпизода дальше не идём
+
+    # --- Шаг 2b: Обновить running summary ---
+    try:
+        old_summary = await database.get_running_summary(telegram_id)
+        new_summary = await _update_running_summary(old_summary, messages)
+        await database.save_running_summary(telegram_id, new_summary)
+    except (LLMError, ValueError, TypeError) as exc:
+        logger.warning(
+            "Running summary update failed for %s: %s", telegram_id, exc
+        )
 
     # --- Шаг 3: Обновить профиль ---
     try:

@@ -380,6 +380,63 @@ async def test_context_meta_tokens_per_var(
 @patch("bot.memory.context_builder.find_relevant_episodes", new_callable=AsyncMock)
 @patch("bot.memory.context_builder.get_profile_as_text", new_callable=AsyncMock)
 @patch("bot.memory.context_builder.database")
+async def test_running_summary_in_prompt(
+    mock_db, mock_prof, mock_eps, mock_proc, mock_bsp,
+):
+    """running_summary непустой -> секция СОДЕРЖАНИЕ РАЗГОВОРА в промпте."""
+    mock_db.get_user = AsyncMock(return_value=_BASE_USER.copy())
+    mock_db.get_patterns = AsyncMock(return_value=[])
+    mock_db.get_active_goal = AsyncMock(return_value=None)
+    mock_db.get_running_summary = AsyncMock(
+        return_value="ФАКТЫ: Маша, 28 лет.\nЭМОЦИИ: тревога."
+    )
+    mock_prof.return_value = ""
+    mock_eps.return_value = []
+    mock_proc.return_value = ""
+    mock_bsp.return_value = "Ты — Ева. ЗНАКОМСТВО"
+
+    from bot.memory.context_builder import build_context
+
+    prompt, _, meta = await build_context(111, "Привет")
+
+    assert "СОДЕРЖАНИЕ РАЗГОВОРА" in prompt
+    assert "Маша, 28 лет" in prompt
+    assert "running_summary" in meta.filled_vars
+
+
+@pytest.mark.asyncio
+@patch("bot.memory.context_builder.build_system_prompt")
+@patch("bot.memory.context_builder.get_procedural_as_text", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.find_relevant_episodes", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.get_profile_as_text", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.database")
+async def test_running_summary_empty_not_in_prompt(
+    mock_db, mock_prof, mock_eps, mock_proc, mock_bsp,
+):
+    """running_summary пустой -> секция НЕ в промпте."""
+    mock_db.get_user = AsyncMock(return_value=_BASE_USER.copy())
+    mock_db.get_patterns = AsyncMock(return_value=[])
+    mock_db.get_active_goal = AsyncMock(return_value=None)
+    mock_db.get_running_summary = AsyncMock(return_value="")
+    mock_prof.return_value = ""
+    mock_eps.return_value = []
+    mock_proc.return_value = ""
+    mock_bsp.return_value = "Ты — Ева. ЗНАКОМСТВО"
+
+    from bot.memory.context_builder import build_context
+
+    prompt, _, meta = await build_context(111, "Привет")
+
+    assert "СОДЕРЖАНИЕ РАЗГОВОРА" not in prompt
+    assert "running_summary" not in meta.filled_vars
+
+
+@pytest.mark.asyncio
+@patch("bot.memory.context_builder.build_system_prompt")
+@patch("bot.memory.context_builder.get_procedural_as_text", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.find_relevant_episodes", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.get_profile_as_text", new_callable=AsyncMock)
+@patch("bot.memory.context_builder.database")
 async def test_empty_profile_fallback(
     mock_db, mock_prof, mock_eps, mock_proc, mock_bsp,
 ):

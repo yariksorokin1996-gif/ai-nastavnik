@@ -90,6 +90,8 @@ def _make_mock_db(
         return_value=headers if headers is not None else []
     )
     mock.get_episodes_by_ids = AsyncMock(return_value=[])
+    mock.get_running_summary = AsyncMock(return_value="")
+    mock.save_running_summary = AsyncMock()
     mock.clear_pending_facts = AsyncMock()
     mock.update_user = AsyncMock()
     return mock
@@ -477,3 +479,111 @@ async def test_duplicate_episode_protection(
     assert not mock_ep.create_episode.called
     assert result.episode_id == 99
     assert result.error is None
+
+
+# ---------------------------------------------------------------------------
+# 11. test_running_summary_updated
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@patch("bot.memory.full_memory_update.call_gpt")
+@patch("bot.memory.full_memory_update.procedural_memory")
+@patch("bot.memory.full_memory_update.profile_manager")
+@patch("bot.memory.full_memory_update.episode_manager")
+@patch("bot.memory.full_memory_update.database")
+async def test_running_summary_updated(mock_db, mock_ep, mock_prof, mock_proc, mock_gpt):
+    """Шаг 2b: running summary обновляется через GPT и сохраняется в БД."""
+    mock_db.get_user = AsyncMock(return_value=dict(_SAMPLE_USER))
+    mock_db.get_messages_since = AsyncMock(return_value=list(_SAMPLE_MESSAGES))
+    mock_db.get_episode_headers = AsyncMock(return_value=[])
+    mock_db.get_pending_facts = AsyncMock(return_value=[])
+    mock_db.clear_pending_facts = AsyncMock()
+    mock_db.update_user = AsyncMock()
+    mock_db.get_running_summary = AsyncMock(return_value="Старое содержание")
+    mock_db.save_running_summary = AsyncMock()
+
+    episode_no_tech = Episode(
+        id=10, title="Test", summary="Test", emotional_tone="ok",
+    )
+    mock_ep.create_episode = AsyncMock(return_value=episode_no_tech)
+    mock_prof.get_profile = AsyncMock(return_value=None)
+
+    # call_gpt: 1-й вызов = running summary, 2-й = profile update
+    mock_gpt.side_effect = [
+        "ФАКТЫ: Маша.\nЭМОЦИИ: тревога.",
+        _GPT_PROFILE_NO_DIFF,
+    ]
+
+    from bot.memory.full_memory_update import update_single_user
+
+    result = await update_single_user(123)
+
+    mock_db.get_running_summary.assert_awaited_once_with(123)
+    mock_db.save_running_summary.assert_awaited_once()
+    saved_text = mock_db.save_running_summary.call_args[0][1]
+    assert "ФАКТЫ" in saved_text
+    assert result.error is None
+
+
+# ---------------------------------------------------------------------------
+# 12. test_running_summary_error_continues
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@patch("bot.memory.full_memory_update.call_gpt")
+@patch("bot.memory.full_memory_update.procedural_memory")
+@patch("bot.memory.full_memory_update.profile_manager")
+@patch("bot.memory.full_memory_update.episode_manager")
+@patch("bot.memory.full_memory_update.database")
+async def test_running_summary_error_continues(
+    mock_db, mock_ep, mock_prof, mock_proc, mock_gpt,
+):
+    """Шаг 2b ошибка: running summary не обновляется, но шаги 3-5 продолжаются."""
+    mock_db.get_user = AsyncMock(return_value=dict(_SAMPLE_USER))
+    mock_db.get_messages_since = AsyncMock(return_value=list(_SAMPLE_MESSAGES))
+    mock_db.get_episode_headers = AsyncMock(return_value=[])
+    mock_db.get_pending_facts = AsyncMock(return_value=[])
+    mock_db.clear_pending_facts = AsyncMock()
+    mock_db.update_user = AsyncMock()
+    mock_db.get_running_summary = AsyncMock(side_effect=LLMError("DB error"))
+    mock_db.save_running_summary = AsyncMock()
+
+    episode_no_tech = Episode(
+        id=10, title="Test", summary="Test", emotional_tone="ok",
+    )
+    mock_ep.create_episode = AsyncMock(return_value=episode_no_tech)
+    mock_prof.get_profile = AsyncMock(return_value=_SAMPLE_PROFILE)
+    mock_gpt.return_value = _GPT_PROFILE_NO_DIFF
+
+    from bot.memory.full_memory_update import update_single_user
+
+    result = await update_single_user(123)
+
+    # running summary НЕ сохранён
+    assert not mock_db.save_running_summary.called
+    # Шаг 3 (профиль) всё равно выполнился
+    assert result.error is None
+    # Шаг 5 (финализация) выполнился
+    mock_db.clear_pending_facts.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# 13. test_running_summary_compress
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_running_summary_compress():
+    """_update_running_summary: > 400 слов -> вызов compress prompt."""
+    from bot.memory.full_memory_update import _update_running_summary
+
+    long_text = "слово " * 500  # > 400 слов
+
+    with patch("bot.memory.full_memory_update.call_gpt") as mock_gpt:
+        mock_gpt.side_effect = [long_text, "Сжатый текст"]
+        result = await _update_running_summary("", _SAMPLE_MESSAGES)
+
+    assert result == "Сжатый текст"
+    assert mock_gpt.await_count == 2

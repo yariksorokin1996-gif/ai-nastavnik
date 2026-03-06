@@ -42,6 +42,7 @@ from bot.memory.database import (
     get_profile_version,
     get_recent_emotions,
     get_recent_messages,
+    get_running_summary,
     get_user,
     get_users_needing_update,
     init_db,
@@ -49,6 +50,7 @@ from bot.memory.database import (
     mark_daily_responded,
     mark_message_processed,
     retention_cleanup,
+    save_running_summary,
     save_weekly_report,
     update_enactment,
     update_feeling,
@@ -226,6 +228,39 @@ async def test_get_users_needing_update(test_db):
 
     result = await get_users_needing_update()
     assert result == [USER_ID]
+
+
+# ===========================================================================
+# Running Summary
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_running_summary_empty(test_db):
+    """get_running_summary для нового юзера возвращает пустую строку."""
+    await init_db()
+    await create_user(USER_ID, name="Маша")
+    result = await get_running_summary(USER_ID)
+    assert result == ""
+
+
+@pytest.mark.asyncio
+async def test_save_and_get_running_summary(test_db):
+    """save_running_summary сохраняет текст, get_running_summary читает."""
+    await init_db()
+    await create_user(USER_ID, name="Маша")
+    summary_text = "ФАКТЫ: Маша, 28 лет, живёт в Москве.\nЭМОЦИИ: тревога."
+    await save_running_summary(USER_ID, summary_text)
+    result = await get_running_summary(USER_ID)
+    assert result == summary_text
+
+
+@pytest.mark.asyncio
+async def test_get_running_summary_not_found(test_db):
+    """get_running_summary для несуществующего юзера возвращает пустую строку."""
+    await init_db()
+    result = await get_running_summary(999999)
+    assert result == ""
 
 
 # ===========================================================================

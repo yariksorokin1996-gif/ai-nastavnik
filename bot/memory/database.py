@@ -280,11 +280,20 @@ CREATE INDEX IF NOT EXISTS idx_el_telegram ON emotion_log(telegram_id);
 
 
 async def init_db():
-    """Создаёт все 17 таблиц. Безопасен для повторного вызова."""
+    """Создаёт все 17 таблиц + миграции. Безопасен для повторного вызова."""
     async with get_db() as db:
         await db.executescript(_CREATE_TABLES)
         await db.commit()
-    logger.info("init_db: 17 таблиц готовы (%s)", DB_PATH)
+        # Миграции (ALTER TABLE — idempotent через try/except)
+        try:
+            await db.execute(
+                "ALTER TABLE users ADD COLUMN running_summary TEXT DEFAULT ''"
+            )
+            await db.commit()
+            logger.info("Migration: added running_summary column")
+        except Exception:
+            pass  # колонка уже существует
+    logger.info("init_db: таблицы готовы (%s)", DB_PATH)
 
 
 # ---------------------------------------------------------------------------
@@ -370,6 +379,27 @@ async def get_all_users() -> list[dict]:
     async with get_db() as db:
         async with db.execute("SELECT * FROM users") as cur:
             return [dict(r) for r in await cur.fetchall()]
+
+
+async def get_running_summary(telegram_id: int) -> str:
+    """Возвращает running_summary пользователя (пустая строка если нет)."""
+    async with get_db() as db:
+        async with db.execute(
+            "SELECT running_summary FROM users WHERE telegram_id = ?",
+            (telegram_id,),
+        ) as cur:
+            row = await cur.fetchone()
+            return (row[0] or "") if row else ""
+
+
+async def save_running_summary(telegram_id: int, summary: str) -> None:
+    """Сохраняет running_summary пользователя."""
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE users SET running_summary = ?, updated_at = ? WHERE telegram_id = ?",
+            (summary, _now(), telegram_id),
+        )
+        await db.commit()
 
 
 # ---------------------------------------------------------------------------
