@@ -504,6 +504,9 @@ if WEBAPP_DIST.is_dir():
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         """SPA fallback — отдаём index.html для всех не-API путей."""
+        # НЕ перехватывать API-маршруты
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
         # Пробуем отдать конкретный файл
         file_path = WEBAPP_DIST / full_path
         if file_path.is_file():
