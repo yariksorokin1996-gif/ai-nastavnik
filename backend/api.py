@@ -477,6 +477,26 @@ async def delete_user(tg: dict = Depends(rate_limit)):
 
 WEBAPP_DIST = Path(__file__).resolve().parent.parent / "webapp" / "dist"
 
+# ---------------------------------------------------------------------------
+# Admin: скачивание БД для анализа переписок
+# ---------------------------------------------------------------------------
+
+@app.get("/api/admin/db")
+async def download_db(key: str = ""):
+    """Отдаёт файл БД целиком. Защита по ADMIN_KEY."""
+    from shared.config import ADMIN_KEY, DB_PATH as _DB_PATH
+    if not ADMIN_KEY or key != ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    db_path = Path(_DB_PATH)
+    if not db_path.exists():
+        raise HTTPException(status_code=404, detail="DB not found")
+    return FileResponse(
+        path=str(db_path),
+        filename="nastavnik.db",
+        media_type="application/octet-stream",
+    )
+
+
 if WEBAPP_DIST.is_dir():
     # Статические ассеты (JS, CSS, images)
     app.mount("/assets", StaticFiles(directory=WEBAPP_DIST / "assets"), name="assets")

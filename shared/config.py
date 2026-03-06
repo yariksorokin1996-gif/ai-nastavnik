@@ -25,6 +25,8 @@ GPT_TIMEOUT = 15
 FALLBACK_RESPONSE = 'Мм, мне нужно немного подумать. Напиши ещё раз через минутку?'
 FULL_UPDATE_PAUSE_MINUTES = 30
 
+ADMIN_KEY = os.getenv('ADMIN_KEY', '')
+
 ALERT_THRESHOLDS = {
     'consecutive_empty_context': 3,
     'consecutive_errors': 3,
