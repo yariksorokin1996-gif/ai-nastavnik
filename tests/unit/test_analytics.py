@@ -618,7 +618,11 @@ async def test_ask_enactment_conditions_met(
     tried_cursor = AsyncMock()
     tried_cursor.fetchone = AsyncMock(return_value=None)
 
-    execute_results = [cooldown_cursor, episode_cursor, tried_cursor]
+    # sent=1 check -> None (ещё не отправляли)
+    sent_cursor = AsyncMock()
+    sent_cursor.fetchone = AsyncMock(return_value=None)
+
+    execute_results = [cooldown_cursor, episode_cursor, tried_cursor, sent_cursor]
     call_count = {"n": 0}
 
     class FakeCtx:
@@ -925,6 +929,180 @@ async def test_weekly_name_substitution(
     full_text = "\n".join(result)
     assert "Маша" in full_text
     assert "Хорошая эмпатия" in full_text
+
+
+# ---------------------------------------------------------------------------
+# 21. test_ask_enactment_no_duplicate_if_already_sent  (regression)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@patch("bot.analytics.feedback_collector._is_quiet_hours", return_value=False)
+@patch("bot.analytics.feedback_collector.database")
+@patch("bot.analytics.feedback_collector.get_db")
+async def test_ask_enactment_no_duplicate_if_already_sent(
+    mock_get_db, mock_database, _mock_quiet
+) -> None:
+    """Регрессия: ask_enactment вызван дважды для одного эпизода.
+
+    Первый вызов → True (sent=1 не найден → отправляем).
+    Второй вызов → False (sent=1 уже есть для этого эпизода → пропускаем).
+    """
+    from bot.analytics.feedback_collector import ask_enactment
+
+    class FakeCtx:
+        def __init__(self, cursor):
+            self._cursor = cursor
+
+        async def __aenter__(self):
+            return self._cursor
+
+        async def __aexit__(self, *args):
+            pass
+
+    def _make_conn(execute_results):
+        call_count = {"n": 0}
+
+        def _side_effect(*args, **kwargs):
+            idx = call_count["n"]
+            call_count["n"] += 1
+            return FakeCtx(execute_results[idx])
+
+        conn = AsyncMock()
+        conn.execute = MagicMock(side_effect=_side_effect)
+        return conn
+
+    class FakeDB:
+        def __init__(self, conn):
+            self._conn = conn
+
+        async def __aenter__(self):
+            return self._conn
+
+        async def __aexit__(self, *args):
+            pass
+
+    # --- Первый вызов: всё ОК, отправляем ---
+    cooldown_cursor_1 = AsyncMock()
+    cooldown_cursor_1.fetchone = AsyncMock(return_value=None)  # нет cooldown сегодня
+
+    episode_cursor_1 = AsyncMock()
+    episode_cursor_1.fetchone = AsyncMock(return_value={
+        "id": 10,
+        "commitments_json": json.dumps(["Позвонить маме"]),
+    })
+
+    tried_cursor_1 = AsyncMock()
+    tried_cursor_1.fetchone = AsyncMock(return_value=None)  # tried_in_practice нет
+
+    sent_cursor_1 = AsyncMock()
+    sent_cursor_1.fetchone = AsyncMock(return_value=None)  # sent=1 для эпизода нет
+
+    mock_database.create_feedback = AsyncMock(return_value=99)
+    mock_database.mark_feedback_sent = AsyncMock()
+
+    bot = MagicMock()
+    bot.send_message = AsyncMock()
+
+    mock_get_db.return_value = FakeDB(
+        _make_conn([cooldown_cursor_1, episode_cursor_1, tried_cursor_1, sent_cursor_1])
+    )
+
+    result_first = await ask_enactment(telegram_id=123, bot=bot)
+    assert result_first is True
+    bot.send_message.assert_awaited_once()
+
+    # --- Второй вызов: sent=1 уже есть для эпизода → return False ---
+    bot.send_message.reset_mock()
+
+    cooldown_cursor_2 = AsyncMock()
+    cooldown_cursor_2.fetchone = AsyncMock(return_value=None)  # cooldown по-прежнему пуст
+
+    episode_cursor_2 = AsyncMock()
+    episode_cursor_2.fetchone = AsyncMock(return_value={
+        "id": 10,
+        "commitments_json": json.dumps(["Позвонить маме"]),
+    })
+
+    tried_cursor_2 = AsyncMock()
+    tried_cursor_2.fetchone = AsyncMock(return_value=None)
+
+    sent_cursor_2 = AsyncMock()
+    sent_cursor_2.fetchone = AsyncMock(return_value={"id": 99})  # уже отправляли!
+
+    mock_get_db.return_value = FakeDB(
+        _make_conn([cooldown_cursor_2, episode_cursor_2, tried_cursor_2, sent_cursor_2])
+    )
+
+    result_second = await ask_enactment(telegram_id=123, bot=bot)
+    assert result_second is False
+    bot.send_message.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# 22. test_check_pending_feedback_no_duplicate_enactment  (regression)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@patch("bot.analytics.feedback_collector._is_quiet_hours", return_value=False)
+@patch("bot.analytics.feedback_collector.ask_enactment", new_callable=AsyncMock)
+@patch("bot.analytics.feedback_collector.ask_feeling", new_callable=AsyncMock)
+@patch("bot.analytics.feedback_collector.get_db")
+async def test_check_pending_feedback_no_duplicate_enactment(
+    mock_get_db, mock_ask_feeling, mock_ask_enactment, _mock_quiet
+) -> None:
+    """Регрессия: check_pending_feedback не вызывает ask_enactment для эпизодов
+    с уже существующей записью sent=1 (SQL-запрос с NOT EXISTS фильтрует их).
+    """
+    from bot.analytics.feedback_collector import check_pending_feedback
+
+    class FakeCtx:
+        def __init__(self, rows):
+            self._rows = rows
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def fetchall(self):
+            return self._rows
+
+    # Первый get_db: запрос эпизодов для ask_feeling — пусто
+    # Второй get_db: запрос пользователей для ask_enactment — пусто
+    # (SQL-фильтр NOT EXISTS уже исключил эпизод с sent=1)
+    call_count = {"n": 0}
+
+    def _make_db(rows_list):
+        class FakeDB:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            def execute(self, *args, **kwargs):
+                idx = call_count["n"]
+                call_count["n"] += 1
+                return FakeCtx(rows_list[idx] if idx < len(rows_list) else [])
+
+        return FakeDB()
+
+    # Оба SQL-запроса возвращают пустой список:
+    # - эпизоды для ask_feeling: нет подходящих
+    # - пользователи для ask_enactment: эпизод с sent=1 отфильтрован SQL'ем
+    mock_get_db.side_effect = [_make_db([[]]), _make_db([[]])]
+
+    ctx = _make_context()
+
+    await check_pending_feedback(ctx)
+
+    # ask_enactment НЕ должен быть вызван — SQL-запрос исключил таких юзеров
+    mock_ask_enactment.assert_not_awaited()
+    # ask_feeling тоже не вызывался
+    mock_ask_feeling.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

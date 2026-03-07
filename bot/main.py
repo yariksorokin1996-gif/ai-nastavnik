@@ -1,5 +1,5 @@
 import logging
-from telegram import MenuButtonWebApp, WebAppInfo
+from telegram import MenuButtonWebApp, WebAppInfo, BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from bot.handlers import (
     start, help_command, status_command, patterns_command,
@@ -33,6 +33,19 @@ async def post_init(app: Application):
             logger.info("Menu Button с Mini App установлен")
         except Exception as e:
             logger.warning(f"Не удалось установить Menu Button: {e}")
+
+    # Сброс старых команд BotFather и установка актуальных
+    try:
+        await app.bot.delete_my_commands()
+        await app.bot.set_my_commands([
+            BotCommand("start", "Начать сначала"),
+            BotCommand("app", "Открыть приложение"),
+            BotCommand("status", "Твой прогресс"),
+            BotCommand("help", "Справка"),
+        ])
+        logger.info("Команды бота обновлены")
+    except Exception as e:
+        logger.warning(f"Не удалось обновить команды: {e}")
 
     from bot.analytics.alerter import alerter
     alerter.init(app.bot)
