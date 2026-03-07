@@ -134,14 +134,18 @@ async def update_profile(
     """Применяет diff к текущему профилю и сохраняет."""
     profile = await get_profile(telegram_id)
     if profile is None:
-        raise ValueError("Profile not found")
+        profile = await create_empty_profile(telegram_id)
 
     # No-op: пустой diff
     if not diff.set_fields and not diff.add_to_lists and not diff.remove_fields:
         return profile
 
-    # set_fields
+    # set_fields (фильтруем поля вне схемы SemanticProfile)
+    valid_fields = set(SemanticProfile.model_fields.keys())
     for key, value in diff.set_fields.items():
+        if key not in valid_fields:
+            logger.warning("update_profile: unknown field %r ignored", key)
+            continue
         setattr(profile, key, value)
 
     # add_to_lists (extend без дублей)

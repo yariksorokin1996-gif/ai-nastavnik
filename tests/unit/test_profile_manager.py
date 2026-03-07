@@ -186,15 +186,18 @@ async def test_update_profile_empty_diff_noop(mock_db):
 
 @pytest.mark.asyncio
 @patch("bot.memory.profile_manager.database")
-async def test_update_profile_raises_when_not_found(mock_db):
-    """update_profile: ValueError если профиль не найден."""
+async def test_update_profile_creates_empty_when_not_found(mock_db):
+    """update_profile: создаёт пустой профиль если не найден, затем применяет diff."""
     mock_db.get_profile = AsyncMock(return_value=None)
+    mock_db.upsert_profile = AsyncMock()
 
     from bot.memory.profile_manager import update_profile
 
     diff = ProfileDiff(set_fields={"name": "Маша"})
-    with pytest.raises(ValueError, match="Profile not found"):
-        await update_profile(111, diff)
+    result = await update_profile(111, diff)
+    assert result.name == "Маша"
+    # upsert_profile вызван дважды: create_empty_profile + save в update_profile
+    assert mock_db.upsert_profile.call_count == 2
 
 
 # ---------------------------------------------------------------------------

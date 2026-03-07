@@ -304,6 +304,7 @@ async def test_pending_facts_cleared(mock_db, mock_ep, mock_prof, mock_proc, moc
     )
     mock_ep.create_episode = AsyncMock(return_value=episode_no_tech)
     mock_prof.get_profile = AsyncMock(return_value=None)
+    mock_prof.create_empty_profile = AsyncMock(return_value=SemanticProfile())
     mock_gpt.return_value = _GPT_PROFILE_NO_DIFF
 
     from bot.memory.full_memory_update import update_single_user
@@ -508,6 +509,7 @@ async def test_running_summary_updated(mock_db, mock_ep, mock_prof, mock_proc, m
     )
     mock_ep.create_episode = AsyncMock(return_value=episode_no_tech)
     mock_prof.get_profile = AsyncMock(return_value=None)
+    mock_prof.create_empty_profile = AsyncMock(return_value=SemanticProfile())
 
     # call_gpt: 1-й вызов = running summary, 2-й = profile update
     mock_gpt.side_effect = [

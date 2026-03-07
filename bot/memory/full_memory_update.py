@@ -223,6 +223,8 @@ async def update_single_user(telegram_id: int) -> FullUpdateResult:
     # --- Шаг 3: Обновить профиль ---
     try:
         current_profile = await profile_manager.get_profile(telegram_id)
+        if current_profile is None:
+            current_profile = await profile_manager.create_empty_profile(telegram_id)
         pending_facts = await database.get_pending_facts(telegram_id)
 
         # Форматируем сообщения для промпта (последние 20)
