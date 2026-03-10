@@ -6,6 +6,7 @@ import logging
 import os
 
 import uvicorn
+from telegram import BotCommand, MenuButtonCommands
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, filters,
@@ -76,6 +77,22 @@ async def _setup_bot() -> Application:
     # Alerter
     from bot.analytics.alerter import alerter
     alerter.init(app.bot)
+
+    # Меню команд (русские названия)
+    try:
+        await app.bot.set_my_commands([
+            BotCommand("start", "Начать сначала"),
+            BotCommand("app", "Открыть приложение"),
+            BotCommand("status", "Мой прогресс"),
+            BotCommand("patterns", "Паттерны"),
+            BotCommand("help", "Справка"),
+        ])
+        await app.bot.set_chat_menu_button(
+            menu_button=MenuButtonCommands(),
+        )
+        logger.info("Команды и кнопка Меню установлены")
+    except Exception as e:
+        logger.warning("Не удалось установить команды: %s", e)
 
     # Запускаем polling
     await app.updater.start_polling(allowed_updates=["message", "callback_query"])

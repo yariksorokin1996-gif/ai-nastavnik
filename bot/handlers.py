@@ -61,7 +61,7 @@ def _webapp_keyboard():
         return None
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(
-            "✨ Открыть приложение",
+            "Личный кабинет",
             web_app=WebAppInfo(url=WEBAPP_URL),
         )],
     ])
@@ -76,7 +76,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if webapp_kb:
         try:
             pinned_msg = await update.message.reply_text(
-                "✨ Твой личный кабинет — тут",
+                "Твой личный кабинет тут",
                 reply_markup=webapp_kb,
             )
             await context.bot.pin_chat_message(
