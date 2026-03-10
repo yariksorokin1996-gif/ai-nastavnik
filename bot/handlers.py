@@ -68,8 +68,24 @@ def _webapp_keyboard():
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /start — тёплое приветствие."""
+    """Команда /start — тёплое приветствие + закреплённое сообщение с WebApp."""
     await update.message.reply_text(START_MESSAGE, reply_markup=MODE_KEYBOARD)
+
+    # Закрепляем сообщение с кнопкой WebApp вверху чата
+    webapp_kb = _webapp_keyboard()
+    if webapp_kb:
+        try:
+            pinned_msg = await update.message.reply_text(
+                "✨ Твой личный кабинет — тут",
+                reply_markup=webapp_kb,
+            )
+            await context.bot.pin_chat_message(
+                chat_id=update.effective_chat.id,
+                message_id=pinned_msg.message_id,
+                disable_notification=True,
+            )
+        except Exception:
+            logger.warning("Failed to pin webapp message", exc_info=True)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

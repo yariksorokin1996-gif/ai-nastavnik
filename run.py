@@ -6,7 +6,6 @@ import logging
 import os
 
 import uvicorn
-from telegram import MenuButtonWebApp, WebAppInfo
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, filters,
@@ -20,7 +19,7 @@ from bot.handlers import (
 )
 from bot.scheduler import setup_scheduler
 from bot.memory.database import init_db
-from shared.config import TELEGRAM_BOT_TOKEN, WEBAPP_URL
+from shared.config import TELEGRAM_BOT_TOKEN
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -77,19 +76,6 @@ async def _setup_bot() -> Application:
     # Alerter
     from bot.analytics.alerter import alerter
     alerter.init(app.bot)
-
-    # Menu Button с Mini App
-    if WEBAPP_URL:
-        try:
-            await app.bot.set_chat_menu_button(
-                menu_button=MenuButtonWebApp(
-                    text="Приложение",
-                    web_app=WebAppInfo(url=WEBAPP_URL),
-                )
-            )
-            logger.info("Menu Button с Mini App установлен")
-        except Exception as e:
-            logger.warning(f"Не удалось установить Menu Button: {e}")
 
     # Запускаем polling
     await app.updater.start_polling(allowed_updates=["message", "callback_query"])
