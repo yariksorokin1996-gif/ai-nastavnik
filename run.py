@@ -16,7 +16,7 @@ from backend.api import app as fastapi_app
 from bot.handlers import (
     start, goal_command, soul_command, about_command,
     handle_voice, handle_message, handle_other_media,
-    callback_handler, app_command, forget_command, delete_account_command,
+    callback_handler, forget_command, delete_account_command,
 )
 from bot.scheduler import setup_scheduler
 from bot.memory.database import init_db
@@ -42,7 +42,6 @@ async def _setup_bot() -> Application:
     app.add_handler(CommandHandler("goal", goal_command))
     app.add_handler(CommandHandler("soul", soul_command))
     app.add_handler(CommandHandler("about", about_command))
-    app.add_handler(CommandHandler("app", app_command))
     # Скрытые команды (не в меню, но работают по прямому вводу)
     app.add_handler(CommandHandler("forget", forget_command))
     app.add_handler(CommandHandler("delete_account", delete_account_command))

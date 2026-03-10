@@ -7,7 +7,6 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ReplyKeyboardRemove,
-    WebAppInfo,
 )
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
@@ -23,13 +22,13 @@ from bot.memory.database import (
 )
 from bot.session_manager import process_message
 from bot.transcriber import transcribe_voice
-from shared.config import WEBAPP_URL
 
 logger = logging.getLogger(__name__)
 
 START_MESSAGE = (
-    "Привет! Я Ева — твоя тёплая подруга, "
-    "которая умеет слушать и запоминать.\n\n"
+    "Привет! Я Ева — подруга, "
+    "которая умеет слушать и запоминать. "
+    "Можешь писать текстом или записывать голосовые.\n\n"
     "У меня есть два режима (выбери в Меню):\n\n"
     "«Идём к цели» — я помогу разобраться в ситуации, "
     "мягко подсвечу то, что ты сама могла не заметить, "
@@ -49,43 +48,11 @@ HELP_MESSAGE = (
 )
 
 
-def _webapp_keyboard():
-    """Inline-клавиатура с кнопкой открытия Mini App (если WEBAPP_URL задан)."""
-    if not WEBAPP_URL:
-        return None
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(
-            "Личный кабинет",
-            web_app=WebAppInfo(url=WEBAPP_URL),
-        )],
-    ])
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start — тёплое приветствие + закреплённое сообщение с WebApp."""
     await update.message.reply_text(
         START_MESSAGE, reply_markup=ReplyKeyboardRemove(),
     )
-
-    # Закрепляем сообщение с кнопкой WebApp вверху чата
-    webapp_kb = _webapp_keyboard()
-    if webapp_kb:
-        try:
-            # Убираем старые закреплённые сообщения
-            await context.bot.unpin_all_chat_messages(
-                chat_id=update.effective_chat.id,
-            )
-            pinned_msg = await update.message.reply_text(
-                "Личный кабинет",
-                reply_markup=webapp_kb,
-            )
-            await context.bot.pin_chat_message(
-                chat_id=update.effective_chat.id,
-                message_id=pinned_msg.message_id,
-                disable_notification=True,
-            )
-        except Exception:
-            logger.warning("Failed to pin webapp message", exc_info=True)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -123,20 +90,6 @@ async def patterns_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for p in patterns[:5]:
         lines.append(f"• {p['pattern_text']} — встречалось {p['count']} раз")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /app — открывает Mini App."""
-    webapp_kb = _webapp_keyboard()
-    if webapp_kb:
-        await update.message.reply_text(
-            "Открой приложение:",
-            reply_markup=webapp_kb,
-        )
-    else:
-        await update.message.reply_text(
-            "Mini App пока не доступен."
-        )
 
 
 async def forget_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
