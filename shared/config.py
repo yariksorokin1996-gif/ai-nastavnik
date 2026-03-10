@@ -13,6 +13,8 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 CLAUDE_MODEL = os.getenv('CLAUDE_MODEL_MAIN', 'claude-sonnet-4-5')
 GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o-mini')
+DIALOG_PROVIDER = os.getenv('DIALOG_PROVIDER', 'claude')
+DIALOG_GPT_MODEL = os.getenv('DIALOG_GPT_MODEL', 'gpt-4.1-mini')
 
 DB_PATH = os.getenv('DB_PATH', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'nastavnik.db'))
 WEBAPP_URL = os.getenv('WEBAPP_URL', '')

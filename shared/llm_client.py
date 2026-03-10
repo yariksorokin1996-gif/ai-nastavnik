@@ -78,19 +78,21 @@ async def call_gpt(
     max_tokens: int = 500,
     timeout: int = GPT_TIMEOUT,
     response_format: dict | None = None,
+    model_override: str | None = None,
 ) -> str:
-    """GPT-4o-mini для фоновых задач (JSON, анализ)."""
+    """GPT для фоновых задач или диалога (с model_override)."""
     full_messages = list(messages)
     if system is not None:
         full_messages = [{'role': 'system', 'content': system}, *full_messages]
 
+    use_model = model_override or GPT_MODEL
     max_attempts = 3
     last_error: Exception | None = None
     for attempt in range(1, max_attempts + 1):
         t0 = time.monotonic()
         try:
             kwargs: dict = {
-                'model': GPT_MODEL,
+                'model': use_model,
                 'messages': full_messages,
                 'max_tokens': max_tokens,
             }
@@ -101,7 +103,7 @@ async def call_gpt(
             latency_ms = int((time.monotonic() - t0) * 1000)
             logger.info(
                 'call_gpt model=%s input_tokens=%d output_tokens=%d latency_ms=%d',
-                GPT_MODEL,
+                use_model,
                 response.usage.prompt_tokens,
                 response.usage.completion_tokens,
                 latency_ms,

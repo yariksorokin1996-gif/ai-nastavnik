@@ -35,10 +35,12 @@ from bot.memory.full_memory_update import update_single_user
 from bot.prompts.phase_evaluator import evaluate_phase
 from shared.config import (
     CLAUDE_TIMEOUT,
+    DIALOG_GPT_MODEL,
+    DIALOG_PROVIDER,
     FALLBACK_RESPONSE,
     RATE_LIMIT_PER_MINUTE,
 )
-from shared.llm_client import LLMError, call_claude
+from shared.llm_client import LLMError, call_claude, call_gpt
 from shared.safety import (
     CRISIS_INSTRUCTION_LEVEL2,
     CRISIS_RESPONSE_LEVEL3,
@@ -236,17 +238,25 @@ async def _process_under_lock(
         prev_time = curr_time
 
     try:
-        response = await call_claude(
-            messages=messages_for_claude,
-            system=system_prompt,
-            max_tokens=400,
-            timeout=CLAUDE_TIMEOUT,
-        )
+        if DIALOG_PROVIDER == "openai":
+            response = await call_gpt(
+                messages=messages_for_claude,
+                system=system_prompt,
+                max_tokens=400,
+                model_override=DIALOG_GPT_MODEL,
+            )
+        else:
+            response = await call_claude(
+                messages=messages_for_claude,
+                system=system_prompt,
+                max_tokens=400,
+                timeout=CLAUDE_TIMEOUT,
+            )
         _consecutive_errors.pop(telegram_id, None)  # сброс при успехе
         alerter.reset(telegram_id, "consecutive_errors")
         alerter.reset(telegram_id, "consecutive_empty_context")
     except LLMError as e:
-        logger.error("Claude call failed for %s: %s", telegram_id, e)
+        logger.error("LLM call failed for %s: %s", telegram_id, e)
         _consecutive_errors[telegram_id] = _consecutive_errors.get(telegram_id, 0) + 1
         await alerter.check(telegram_id, "consecutive_errors")
         if _consecutive_errors.get(telegram_id, 0) >= 3:
