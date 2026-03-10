@@ -74,7 +74,8 @@ async def check_pending_feedback(context) -> None:
                  AND e.created_at <= datetime('now', '-12 hours')
                  AND NOT EXISTS (
                    SELECT 1 FROM session_feedback sf
-                   WHERE sf.episode_id = e.id AND sf.tried_in_practice IS NOT NULL
+                   WHERE sf.episode_id = e.id
+                     AND (sf.tried_in_practice IS NOT NULL OR sf.sent = 1)
                  )"""
         ) as cur:
             users_for_enactment = [dict(r) for r in await cur.fetchall()]
@@ -220,6 +221,15 @@ async def ask_enactment(telegram_id: int, bot: Bot) -> bool:
         # Условие 2: нет tried_in_practice для этого эпизода
         async with db.execute(
             "SELECT 1 FROM session_feedback WHERE episode_id = ? AND tried_in_practice IS NOT NULL",
+            (episode_id,),
+        ) as cur:
+            if await cur.fetchone():
+                return False
+
+    # Guard: уже есть feedback-запись для этого эпизода
+    async with get_db() as db:
+        async with db.execute(
+            "SELECT 1 FROM session_feedback WHERE episode_id = ?",
             (episode_id,),
         ) as cur:
             if await cur.fetchone():

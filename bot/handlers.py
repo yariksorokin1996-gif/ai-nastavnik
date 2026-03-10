@@ -2,10 +2,18 @@ from __future__ import annotations
 
 import logging
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    WebAppInfo,
+)
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
+from bot.memory import database
 from bot.memory.database import (
     get_user,
     get_patterns,
@@ -19,6 +27,12 @@ from bot.transcriber import transcribe_voice
 from shared.config import WEBAPP_URL
 
 logger = logging.getLogger(__name__)
+
+MODE_KEYBOARD = ReplyKeyboardMarkup(
+    [[KeyboardButton("🎯 Идём к цели"), KeyboardButton("💬 По душам")]],
+    resize_keyboard=True,
+    one_time_keyboard=False,
+)
 
 START_MESSAGE = (
     "Привет 💛 Я Ева.\n\n"
@@ -55,7 +69,7 @@ def _webapp_keyboard():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start — тёплое приветствие."""
-    await update.message.reply_text(START_MESSAGE)
+    await update.message.reply_text(START_MESSAGE, reply_markup=MODE_KEYBOARD)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -147,6 +161,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user_text or not user_text.strip():
         return
 
+    # Перехват кнопок режимов
+    if user_text in ("🎯 Идём к цели", "💬 По душам"):
+        mode = "goal" if "цели" in user_text else "soul"
+        await database.update_user(telegram_id, conversation_mode=mode)
+        ack = "Окей, фокус на цели 🎯" if mode == "goal" else "Окей, просто поболтаем 💬"
+        await update.message.reply_text(ack, reply_markup=MODE_KEYBOARD)
+        return
+
     await context.bot.send_chat_action(chat_id=telegram_id, action=ChatAction.TYPING)
 
     response = await process_message(
@@ -157,7 +179,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if response is not None:
-        await update.message.reply_text(response)
+        await update.message.reply_text(response, reply_markup=MODE_KEYBOARD)
 
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -194,7 +216,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if response is not None:
-        await update.message.reply_text(response)
+        await update.message.reply_text(response, reply_markup=MODE_KEYBOARD)
 
 
 async def handle_other_media(update: Update, context: ContextTypes.DEFAULT_TYPE):

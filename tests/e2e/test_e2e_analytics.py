@@ -164,11 +164,11 @@ class TestE2E7FeedbackPipeline:
         # Создаём пустой профиль (create_user не создаёт его)
         await create_empty_profile(E2E_TELEGRAM_ID)
 
-        # Отправить 5 сообщений
-        await send_messages(E2E_TELEGRAM_ID, 5, mock_llm["session_manager_claude"])
+        # Отправить 4 сообщения (не 5 — иначе % 5 == 0 триггерит фоновый memory update)
+        await send_messages(E2E_TELEGRAM_ID, 4, mock_llm["session_manager_claude"])
 
         # Инжектируем паузу 2.5ч для full_memory_update
-        await update_user(E2E_TELEGRAM_ID, last_message_at=time_ago(150))
+        await update_user(E2E_TELEGRAM_ID, last_message_at=time_ago(150), needs_full_update=1)
 
         # Запускаем полное обновление
         results = await run_full_memory_update()

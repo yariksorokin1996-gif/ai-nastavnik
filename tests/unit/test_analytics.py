@@ -618,7 +618,11 @@ async def test_ask_enactment_conditions_met(
     tried_cursor = AsyncMock()
     tried_cursor.fetchone = AsyncMock(return_value=None)
 
-    execute_results = [cooldown_cursor, episode_cursor, tried_cursor]
+    # guard: нет существующей feedback-записи для episode
+    guard_cursor = AsyncMock()
+    guard_cursor.fetchone = AsyncMock(return_value=None)
+
+    execute_results = [cooldown_cursor, episode_cursor, tried_cursor, guard_cursor]
     call_count = {"n": 0}
 
     class FakeCtx:

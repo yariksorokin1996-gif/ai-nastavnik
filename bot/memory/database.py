@@ -284,6 +284,11 @@ async def init_db():
     async with get_db() as db:
         await db.executescript(_CREATE_TABLES)
         await db.commit()
+        # Cleanup dead feedback records (one-time after spam fix)
+        await db.execute(
+            "DELETE FROM session_feedback WHERE sent = 0 AND tried_in_practice IS NULL AND feeling_after IS NULL"
+        )
+        await db.commit()
         # Миграции (ALTER TABLE — idempotent через try/except)
         try:
             await db.execute(
@@ -293,6 +298,13 @@ async def init_db():
             logger.info("Migration: added running_summary column")
         except Exception:
             pass  # колонка уже существует
+        # Migration: add conversation_mode to users
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN conversation_mode TEXT DEFAULT NULL")
+            await db.commit()
+            logger.info("Migration: added conversation_mode column")
+        except Exception:
+            pass  # Column already exists
     logger.info("init_db: таблицы готовы (%s)", DB_PATH)
 
 
@@ -310,6 +322,7 @@ _USER_UPDATABLE_FIELDS = frozenset({
     "timezone",
     "last_full_update_at",
     "last_automated_msg_at",
+    "conversation_mode",
     "updated_at",
 })
 

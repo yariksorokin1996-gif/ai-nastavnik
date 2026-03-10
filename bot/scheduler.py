@@ -5,17 +5,13 @@
     2. check_silence — каждые 6 часов
     3. run_full_memory_update — каждые 5 минут
     4. check_pending_feedback — каждые 30 минут
-    5. generate_daily_report — ежедневно 09:00 MSK
-    6. generate_weekly_report — воскресенье 12:00 MSK
 """
 from __future__ import annotations
 
 import logging
 from datetime import time, timedelta, timezone
 
-from bot.analytics.daily_report import generate_daily_report
 from bot.analytics.feedback_collector import check_pending_feedback
-from bot.analytics.weekly_report import generate_weekly_report
 from bot.daily_messenger import send_daily_messages, check_silence
 from bot.memory.full_memory_update import run_full_memory_update
 
@@ -64,23 +60,7 @@ def setup_scheduler(app) -> None:
         name="check_pending_feedback",
     )
 
-    # 5. Ежедневный отчёт — 09:00 MSK
-    job_queue.run_daily(
-        generate_daily_report,
-        time=time(hour=9, minute=0, tzinfo=MOSCOW_TZ),
-        name="daily_report",
-    )
-
-    # 6. Еженедельная сводка — воскресенье 12:00 MSK
-    job_queue.run_daily(
-        generate_weekly_report,
-        time=time(hour=12, minute=0, tzinfo=MOSCOW_TZ),
-        days=(6,),
-        name="weekly_report",
-    )
-
     logger.info(
-        "Scheduler: 6 jobs registered "
-        "(daily_messages, silence_check, memory_update, "
-        "feedback_collector, daily_report, weekly_report)"
+        "Scheduler: 4 jobs registered "
+        "(daily_messages, silence_check, memory_update, feedback_collector)"
     )

@@ -69,11 +69,11 @@ PHASE_ORDER: list[str] = [
 ]
 
 PHASE_THRESHOLDS: dict[str, int | None] = {
-    "ЗНАКОМСТВО": 6,
-    "ЗЕРКАЛО": 15,
-    "НАСТРОЙКА": 25,
-    "ПОРТРЕТ": 40,
-    "ЦЕЛЬ": 50,
+    "ЗНАКОМСТВО": 5,
+    "ЗЕРКАЛО": 10,
+    "НАСТРОЙКА": 18,
+    "ПОРТРЕТ": 25,
+    "ЦЕЛЬ": 35,
     "РИТМ": None,  # финальная фаза
 }
 
@@ -218,16 +218,28 @@ async def _process_under_lock(
             "Мягко спроси как она сейчас, не давя."
         )
 
-    messages_for_claude = [
-        {"role": m["role"], "content": m["content"]}
-        for m in recent
-    ]
+    messages_for_claude = []
+    prev_time = None
+    pending_pause = ""
+    for m in recent:
+        curr_time = m.get("created_at")
+        if prev_time and curr_time:
+            gap = (datetime.fromisoformat(curr_time) - datetime.fromisoformat(prev_time)).total_seconds()
+            if gap > 1800:  # 30 мин
+                pause_text = _format_pause(gap)
+                pending_pause = f"[{pause_text}]\n"
+        content = m["content"]
+        if pending_pause and m["role"] == "user":
+            content = pending_pause + content
+            pending_pause = ""
+        messages_for_claude.append({"role": m["role"], "content": content})
+        prev_time = curr_time
 
     try:
         response = await call_claude(
             messages=messages_for_claude,
             system=system_prompt,
-            max_tokens=500,
+            max_tokens=400,
             timeout=CLAUDE_TIMEOUT,
         )
         _consecutive_errors.pop(telegram_id, None)  # сброс при успехе
@@ -277,11 +289,11 @@ async def _process_under_lock(
     # --- Step 12: ASYNC mini memory update (fire-and-forget) ---
     asyncio.create_task(_mini_memory_update(telegram_id, text, response))
 
-    # --- Step 13: ASYNC phase check + memory update (every 10 messages) ---
+    # --- Step 13: ASYNC phase check + memory update (every 5 messages) ---
     messages_total = user.get("messages_total", 0) + 1
-    if messages_total % 10 == 0:
-        asyncio.create_task(_check_phase_transition(telegram_id))
-        # Триггер полного обновления памяти каждые 10 сообщений
+    if messages_total % 5 == 0:
+        asyncio.create_task(_check_phase_transition(telegram_id, messages_total))
+        # Триггер полного обновления памяти каждые 5 сообщений
         asyncio.create_task(_trigger_memory_update(telegram_id))
 
     # --- Step 14: Update counters ---
@@ -381,6 +393,16 @@ def _was_recent_crisis(messages: list[dict]) -> bool:
     return False
 
 
+def _format_pause(seconds: float) -> str:
+    """Форматирует паузу в человекочитаемый вид."""
+    days = int(seconds // 86400)
+    if days >= 1:
+        return f"Пауза {days} дн"
+    hours = int(seconds // 3600)
+    mins = int((seconds % 3600) // 60)
+    return f"Пауза {hours} ч {mins} мин" if hours else f"Пауза {mins} мин"
+
+
 def _get_next_phase(current: str) -> str | None:
     """Следующая фаза из PHASE_ORDER или None если уже РИТМ."""
     try:
@@ -459,15 +481,14 @@ async def _trigger_memory_update(telegram_id: int) -> None:
         )
 
 
-async def _check_phase_transition(telegram_id: int) -> None:
-    """Проверка фазового перехода через LLM. Запускается в фоне каждые 10 сообщений."""
+async def _check_phase_transition(telegram_id: int, messages_total: int) -> None:
+    """Проверка фазового перехода через LLM. Запускается в фоне каждые 5 сообщений."""
     try:
         user = await get_user(telegram_id)
         if not user:
             return
 
         current_phase = user.get("current_phase", "ЗНАКОМСТВО")
-        messages_total = user.get("messages_total", 0)
 
         # Проверяем порог для текущей фазы
         threshold = PHASE_THRESHOLDS.get(current_phase)
@@ -482,7 +503,9 @@ async def _check_phase_transition(telegram_id: int) -> None:
         recent = await get_recent_messages(telegram_id, limit=10)
         evaluation = await evaluate_phase(telegram_id, recent)
 
-        if evaluation.recommendation == "advance" and evaluation.confidence >= 0.7:
+        force_advance = messages_total >= threshold * 3
+
+        if force_advance or (evaluation.recommendation == "advance" and evaluation.confidence >= 0.7):
             next_phase = _get_next_phase(current_phase)
             if next_phase:
                 await update_user(telegram_id, current_phase=next_phase)
@@ -493,10 +516,21 @@ async def _check_phase_transition(telegram_id: int) -> None:
                     reason=", ".join(evaluation.criteria_met),
                     messages_count=messages_total,
                 )
-                logger.info(
-                    "Phase transition user %s: %s -> %s (confidence=%.2f)",
-                    telegram_id, current_phase, next_phase, evaluation.confidence,
-                )
+                if force_advance:
+                    logger.warning(
+                        "FORCE phase advance user %s: %s -> %s (messages=%d, threshold=%d)",
+                        telegram_id, current_phase, next_phase, messages_total, threshold,
+                    )
+                else:
+                    logger.info(
+                        "Phase transition user %s: %s -> %s (confidence=%.2f)",
+                        telegram_id, current_phase, next_phase, evaluation.confidence,
+                    )
+        else:
+            logger.info(
+                "Phase stay user %s: phase=%s confidence=%.2f criteria=%s",
+                telegram_id, current_phase, evaluation.confidence, evaluation.criteria_met,
+            )
 
     except Exception:
         logger.warning(

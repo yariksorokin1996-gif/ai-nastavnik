@@ -234,7 +234,8 @@ async def build_context(
         steps = await _safe_call(database.get_goal_steps, goal["id"])
 
     # Шаг 3: base prompt (SYNC вызов)
-    base_prompt = build_system_prompt(current_phase)
+    conversation_mode = user.get("conversation_mode")
+    base_prompt = build_system_prompt(current_phase, conversation_mode=conversation_mode)
 
     # Шаг 4: форматирование секций
     sections: dict[str, str] = {}

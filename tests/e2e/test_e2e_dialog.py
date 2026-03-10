@@ -105,11 +105,11 @@ class TestE2E2FullMemoryUpdate:
         # Создаём пустой профиль (create_user не создаёт его)
         await create_empty_profile(E2E_TELEGRAM_ID)
 
-        # Отправить 5 сообщений
-        await send_messages(E2E_TELEGRAM_ID, 5, mock_llm["session_manager_claude"])
+        # Отправить 4 сообщения (не 5 — иначе % 5 == 0 триггерит фоновый update)
+        await send_messages(E2E_TELEGRAM_ID, 4, mock_llm["session_manager_claude"])
 
         # Инжектируем паузу: last_message_at = 35 мин назад
-        await update_user(E2E_TELEGRAM_ID, last_message_at=time_ago(35))
+        await update_user(E2E_TELEGRAM_ID, last_message_at=time_ago(35), needs_full_update=1)
 
         # Запускаем полное обновление
         results = await run_full_memory_update()
@@ -172,7 +172,7 @@ class TestE2E3PhaseTransition:
         assert response is not None
 
         # Вызываем _check_phase_transition напрямую (контролируемый вызов)
-        await _check_phase_transition(E2E_TELEGRAM_ID)
+        await _check_phase_transition(E2E_TELEGRAM_ID, messages_total=10)
 
         # Проверяем: фаза сменилась
         user = await get_user(E2E_TELEGRAM_ID)
