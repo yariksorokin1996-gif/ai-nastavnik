@@ -14,7 +14,7 @@ from telegram.ext import (
 
 from backend.api import app as fastapi_app
 from bot.handlers import (
-    start, help_command, status_command, patterns_command,
+    start, goal_command, soul_command, about_command,
     handle_voice, handle_message, handle_other_media,
     callback_handler, app_command, forget_command, delete_account_command,
 )
@@ -39,10 +39,11 @@ async def _setup_bot() -> Application:
 
     # Команды
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("status", status_command))
-    app.add_handler(CommandHandler("patterns", patterns_command))
+    app.add_handler(CommandHandler("goal", goal_command))
+    app.add_handler(CommandHandler("soul", soul_command))
+    app.add_handler(CommandHandler("about", about_command))
     app.add_handler(CommandHandler("app", app_command))
+    # Скрытые команды (не в меню, но работают по прямому вводу)
     app.add_handler(CommandHandler("forget", forget_command))
     app.add_handler(CommandHandler("delete_account", delete_account_command))
 
@@ -81,11 +82,9 @@ async def _setup_bot() -> Application:
     # Меню команд (русские названия)
     try:
         await app.bot.set_my_commands([
-            BotCommand("start", "Начать сначала"),
-            BotCommand("app", "Открыть приложение"),
-            BotCommand("status", "Мой прогресс"),
-            BotCommand("patterns", "Паттерны"),
-            BotCommand("help", "Справка"),
+            BotCommand("goal", "Идём к цели"),
+            BotCommand("soul", "По душам"),
+            BotCommand("about", "Что умеет Ева"),
         ])
         await app.bot.set_chat_menu_button(
             menu_button=MenuButtonCommands(),

@@ -6,8 +6,7 @@ from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
     WebAppInfo,
 )
 from telegram.ext import ContextTypes
@@ -28,30 +27,25 @@ from shared.config import WEBAPP_URL
 
 logger = logging.getLogger(__name__)
 
-MODE_KEYBOARD = ReplyKeyboardMarkup(
-    [[KeyboardButton("🎯 Идём к цели"), KeyboardButton("💬 По душам")]],
-    resize_keyboard=True,
-    one_time_keyboard=False,
-)
-
 START_MESSAGE = (
-    "Привет 💛 Я Ева.\n\n"
-    "Я не коуч, не терапевт — скорее подруга, "
+    "Привет! Я Ева — твоя тёплая подруга, "
     "которая умеет слушать и запоминать.\n\n"
-    "Расскажи, что у тебя сейчас происходит?\n\n"
-    "ᵉᵛᵃ — не замена специалисту. "
-    "Если тебе нужна срочная помощь: 8-800-2000-122"
+    "У меня есть два режима (выбери в Меню):\n\n"
+    "«Идём к цели» — я помогу разобраться в ситуации, "
+    "мягко подсвечу то, что ты сама могла не заметить, "
+    "и поддержу, если решишь что-то менять. "
+    "Могу задавать неудобные вопросы — но только чтобы помочь.\n\n"
+    "«По душам» — просто поговорим. Без советов, без анализа. "
+    "Я рядом, слушаю, сочувствую. "
+    "Иногда нужно просто выговориться — и это нормально.\n\n"
+    "Расскажи, что у тебя сейчас происходит?"
 )
 
 HELP_MESSAGE = (
     "Команды:\n"
-    "/start — начать сначала\n"
-    "/app — открыть приложение\n"
-    "/status — твой прогресс\n"
-    "/patterns — паттерны, которые я заметила\n"
-    "/forget — забыть всё обо мне (сообщения останутся)\n"
-    "/delete_account — удалить ВСЁ\n"
-    "/help — эта справка"
+    "/goal — режим «Идём к цели»\n"
+    "/soul — режим «По душам»\n"
+    "/about — что умеет Ева"
 )
 
 
@@ -69,14 +63,20 @@ def _webapp_keyboard():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start — тёплое приветствие + закреплённое сообщение с WebApp."""
-    await update.message.reply_text(START_MESSAGE, reply_markup=MODE_KEYBOARD)
+    await update.message.reply_text(
+        START_MESSAGE, reply_markup=ReplyKeyboardRemove(),
+    )
 
     # Закрепляем сообщение с кнопкой WebApp вверху чата
     webapp_kb = _webapp_keyboard()
     if webapp_kb:
         try:
+            # Убираем старые закреплённые сообщения
+            await context.bot.unpin_all_chat_messages(
+                chat_id=update.effective_chat.id,
+            )
             pinned_msg = await update.message.reply_text(
-                "Твой личный кабинет тут",
+                "Личный кабинет",
                 reply_markup=webapp_kb,
             )
             await context.bot.pin_chat_message(
@@ -167,6 +167,36 @@ async def delete_account_command(update: Update, context: ContextTypes.DEFAULT_T
     )
 
 
+async def goal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /goal — режим «Идём к цели»."""
+    telegram_id = update.effective_user.id
+    await database.update_user(telegram_id, conversation_mode="goal")
+    await update.message.reply_text(
+        "Окей, фокус на цели. Рассказывай, что хочешь изменить?",
+    )
+
+
+async def soul_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /soul — режим «По душам»."""
+    telegram_id = update.effective_user.id
+    await database.update_user(telegram_id, conversation_mode="soul")
+    await update.message.reply_text(
+        "Окей, просто поболтаем. Я тут, рассказывай.",
+    )
+
+
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /about — что умеет Ева."""
+    await update.message.reply_text(
+        "Я Ева — бот-подруга с памятью. "
+        "Я запоминаю, что ты рассказываешь, замечаю паттерны "
+        "и помогаю увидеть ситуацию с другой стороны.\n\n"
+        "Выбери режим в Меню:\n"
+        "/goal — Идём к цели\n"
+        "/soul — По душам",
+    )
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений."""
     telegram_id = update.effective_user.id
@@ -175,14 +205,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = update.message.message_id
 
     if not user_text or not user_text.strip():
-        return
-
-    # Перехват кнопок режимов
-    if user_text in ("🎯 Идём к цели", "💬 По душам"):
-        mode = "goal" if "цели" in user_text else "soul"
-        await database.update_user(telegram_id, conversation_mode=mode)
-        ack = "Окей, фокус на цели 🎯" if mode == "goal" else "Окей, просто поболтаем 💬"
-        await update.message.reply_text(ack, reply_markup=MODE_KEYBOARD)
         return
 
     await context.bot.send_chat_action(chat_id=telegram_id, action=ChatAction.TYPING)
@@ -195,7 +217,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if response is not None:
-        await update.message.reply_text(response, reply_markup=MODE_KEYBOARD)
+        await update.message.reply_text(response)
 
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -232,7 +254,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if response is not None:
-        await update.message.reply_text(response, reply_markup=MODE_KEYBOARD)
+        await update.message.reply_text(response)
 
 
 async def handle_other_media(update: Update, context: ContextTypes.DEFAULT_TYPE):

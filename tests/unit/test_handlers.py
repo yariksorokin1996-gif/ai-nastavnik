@@ -7,7 +7,6 @@ import pytest
 
 from bot.handlers import (
     start,
-    help_command,
     status_command,
     forget_command,
     handle_voice,
@@ -74,29 +73,16 @@ async def test_start_contains_eva() -> None:
 
 
 @pytest.mark.asyncio
-async def test_start_contains_disclaimer() -> None:
-    """Команда /start — ответ содержит телефон горячей линии."""
+async def test_start_contains_mode_descriptions() -> None:
+    """Команда /start — ответ содержит описание режимов."""
     update = make_update()
     context = make_context()
 
     await start(update, context)
 
     text = update.message.reply_text.call_args[0][0]
-    assert "8-800-2000-122" in text
-
-
-@pytest.mark.asyncio
-async def test_help_contains_commands() -> None:
-    """Команда /help — ответ содержит /forget и /delete_account."""
-    update = make_update()
-    context = make_context()
-
-    await help_command(update, context)
-
-    update.message.reply_text.assert_called_once()
-    text = update.message.reply_text.call_args[0][0]
-    assert "/forget" in text
-    assert "/delete_account" in text
+    assert "Идём к цели" in text
+    assert "По душам" in text
 
 
 @pytest.mark.asyncio
