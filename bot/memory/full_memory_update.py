@@ -304,6 +304,28 @@ async def _update_single_user_impl(telegram_id: int) -> FullUpdateResult:
             result.error = str(exc)
         # Продолжаем к шагу 4 — эпизод уже создан
 
+    # --- Шаг 3b: Сжатие running summary (без GPT) ---
+    try:
+        current_summary = await database.get_running_summary(telegram_id)
+        if current_summary and len(current_summary.split()) > 400:
+            profile_data = current_profile.model_dump() if current_profile else {}
+            filled = sum(
+                1 for v in profile_data.values()
+                if v and v != [] and v != {}
+            )
+            if filled >= 5 and profile_updated:
+                words = current_summary.split()
+                trimmed = " ".join(words[-200:])
+                await database.save_running_summary(telegram_id, trimmed)
+                logger.info(
+                    "Running summary trimmed for %s (%d→200 words)",
+                    telegram_id, len(words),
+                )
+    except Exception as exc:
+        logger.warning(
+            "Summary trim failed for %s: %s", telegram_id, exc
+        )
+
     # --- Шаг 4: Обновить процедурную память ---
     try:
         techniques_worked = getattr(ep, "techniques_worked", []) or []

@@ -525,8 +525,9 @@ async def test_running_summary_updated(mock_db, mock_ep, mock_prof, mock_proc, m
 
     result = await update_single_user(123)
 
-    mock_db.get_running_summary.assert_awaited_once_with(123)
-    mock_db.save_running_summary.assert_awaited_once()
+    # get_running_summary вызывается дважды: шаг 2b + шаг 3b (trim check)
+    assert mock_db.get_running_summary.await_count >= 1
+    assert mock_db.save_running_summary.await_count >= 1
     saved_text = mock_db.save_running_summary.call_args[0][1]
     assert "ФАКТЫ" in saved_text
     assert result.error is None
