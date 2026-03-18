@@ -5,6 +5,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+# Мокаем whitelist для всех тестов — всегда разрешено
+pytestmark = pytest.mark.usefixtures()
+
+
+@pytest.fixture(autouse=True)
+def mock_whitelist():
+    """Все юзеры допущены в тестах."""
+    with patch("bot.handlers.is_user_allowed", new_callable=AsyncMock, return_value=True):
+        yield
+
 from bot.handlers import (
     start,
     status_command,

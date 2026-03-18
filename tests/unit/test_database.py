@@ -84,15 +84,15 @@ def test_db(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_init_db_creates_17_tables(test_db):
-    """init_db() создаёт ровно 17 таблиц."""
+async def test_init_db_creates_18_tables(test_db):
+    """init_db() создаёт ровно 18 таблиц."""
     await init_db()
     async with aiosqlite.connect(test_db) as db:
         async with db.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         ) as cur:
             tables = [row[0] for row in await cur.fetchall()]
-    assert len(tables) == 17, f"Ожидалось 17 таблиц, получено {len(tables)}: {tables}"
+    assert len(tables) == 18, f"Ожидалось 18 таблиц, получено {len(tables)}: {tables}"
 
 
 @pytest.mark.asyncio

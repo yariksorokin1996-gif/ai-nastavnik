@@ -19,11 +19,36 @@ from bot.memory.database import (
     delete_user_completely,
     update_feeling,
     update_enactment,
+    is_user_allowed,
+    add_allowed_user,
+    remove_allowed_user,
+    get_allowed_users,
 )
 from bot.session_manager import process_message
 from bot.transcriber import transcribe_voice
+from shared.config import OWNER_TELEGRAM_ID
 
 logger = logging.getLogger(__name__)
+
+CLOSED_MESSAGE = "Привет! Ева сейчас работает в закрытом тестировании 💛"
+
+
+async def _check_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Проверяет whitelist. Если юзер не допущен — уведомляет owner. Возвращает True если доступ есть."""
+    telegram_id = update.effective_user.id
+    if await is_user_allowed(telegram_id):
+        return True
+    user_name = update.effective_user.first_name or "?"
+    logger.info("Blocked user: %s (name=%s)", telegram_id, user_name)
+    await update.message.reply_text(CLOSED_MESSAGE)
+    try:
+        await context.bot.send_message(
+            OWNER_TELEGRAM_ID,
+            f"Новый юзер хочет доступ:\nID: {telegram_id}\nИмя: {user_name}\n\n/allow {telegram_id}",
+        )
+    except Exception:
+        logger.warning("Failed to notify owner about blocked user %s", telegram_id)
+    return False
 
 START_MESSAGE = (
     "Привет! Я Ева 💛\n\n"
@@ -47,7 +72,9 @@ HELP_MESSAGE = (
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /start — тёплое приветствие + закреплённое сообщение с WebApp."""
+    """Команда /start — тёплое приветствие."""
+    if not await _check_access(update, context):
+        return
     await update.message.reply_text(
         START_MESSAGE, reply_markup=ReplyKeyboardRemove(),
     )
@@ -153,6 +180,8 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений."""
+    if not await _check_access(update, context):
+        return
     telegram_id = update.effective_user.id
     user_name = update.effective_user.first_name or None
     user_text = update.message.text
@@ -176,6 +205,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик голосовых сообщений."""
+    if not await _check_access(update, context):
+        return
     telegram_id = update.effective_user.id
     user_name = update.effective_user.first_name or None
     message_id = update.message.message_id
@@ -272,3 +303,54 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 0: "Ничего, попробуешь когда будешь готова 💛",
             }
             await query.edit_message_text(responses.get(value, "Записала! 💛"))
+
+
+# ---------------------------------------------------------------------------
+# Owner-only: whitelist management
+# ---------------------------------------------------------------------------
+
+
+async def allow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /allow ID — добавить юзера в whitelist (только owner)."""
+    if update.effective_user.id != OWNER_TELEGRAM_ID:
+        return
+    args = context.args
+    if not args:
+        await update.message.reply_text("Использование: /allow 123456789")
+        return
+    try:
+        tid = int(args[0])
+    except ValueError:
+        await update.message.reply_text("ID должен быть числом")
+        return
+    await add_allowed_user(tid, added_by=update.effective_user.id)
+    await update.message.reply_text(f"✅ Юзер {tid} добавлен")
+
+
+async def deny_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /deny ID — убрать юзера из whitelist (только owner)."""
+    if update.effective_user.id != OWNER_TELEGRAM_ID:
+        return
+    args = context.args
+    if not args:
+        await update.message.reply_text("Использование: /deny 123456789")
+        return
+    try:
+        tid = int(args[0])
+    except ValueError:
+        await update.message.reply_text("ID должен быть числом")
+        return
+    await remove_allowed_user(tid)
+    await update.message.reply_text(f"❌ Юзер {tid} удалён")
+
+
+async def allowed_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /allowed — список допущенных юзеров (только owner)."""
+    if update.effective_user.id != OWNER_TELEGRAM_ID:
+        return
+    users = await get_allowed_users()
+    if not users:
+        await update.message.reply_text("Список пуст")
+        return
+    text = "Допущенные юзеры:\n" + "\n".join(str(u) for u in users)
+    await update.message.reply_text(text)

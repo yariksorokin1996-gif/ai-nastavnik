@@ -276,14 +276,29 @@ CREATE TABLE IF NOT EXISTS emotion_log (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_el_telegram ON emotion_log(telegram_id);
+
+-- 18. allowed_users (whitelist)
+CREATE TABLE IF NOT EXISTS allowed_users (
+    telegram_id INTEGER PRIMARY KEY,
+    added_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
 async def init_db():
-    """Создаёт все 17 таблиц + миграции. Безопасен для повторного вызова."""
+    """Создаёт все 18 таблиц + миграции. Безопасен для повторного вызова."""
     async with get_db() as db:
         await db.executescript(_CREATE_TABLES)
         await db.commit()
+        # Owner всегда в whitelist
+        from shared.config import OWNER_TELEGRAM_ID
+        if OWNER_TELEGRAM_ID:
+            await db.execute(
+                "INSERT OR IGNORE INTO allowed_users (telegram_id, added_by) VALUES (?, ?)",
+                (OWNER_TELEGRAM_ID, OWNER_TELEGRAM_ID),
+            )
+            await db.commit()
         # Cleanup dead feedback records (one-time after spam fix)
         await db.execute(
             "DELETE FROM session_feedback WHERE sent = 0 AND tried_in_practice IS NULL AND feeling_after IS NULL"
@@ -1240,6 +1255,48 @@ async def delete_user_completely(telegram_id: int):
 # ---------------------------------------------------------------------------
 # Retention (общая)
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Whitelist (allowed_users)
+# ---------------------------------------------------------------------------
+
+
+async def is_user_allowed(telegram_id: int) -> bool:
+    """Проверяет, есть ли юзер в whitelist."""
+    async with get_db() as db:
+        async with db.execute(
+            "SELECT 1 FROM allowed_users WHERE telegram_id = ?",
+            (telegram_id,),
+        ) as cur:
+            return await cur.fetchone() is not None
+
+
+async def add_allowed_user(telegram_id: int, added_by: int) -> None:
+    """Добавляет юзера в whitelist."""
+    async with get_db() as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO allowed_users (telegram_id, added_by) VALUES (?, ?)",
+            (telegram_id, added_by),
+        )
+        await db.commit()
+
+
+async def remove_allowed_user(telegram_id: int) -> None:
+    """Удаляет юзера из whitelist."""
+    async with get_db() as db:
+        await db.execute(
+            "DELETE FROM allowed_users WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.commit()
+
+
+async def get_allowed_users() -> list[int]:
+    """Список всех допущенных юзеров."""
+    async with get_db() as db:
+        async with db.execute("SELECT telegram_id FROM allowed_users") as cur:
+            return [row[0] for row in await cur.fetchall()]
 
 
 async def retention_cleanup(msg_days: int = 90, events_days: int = 90):
