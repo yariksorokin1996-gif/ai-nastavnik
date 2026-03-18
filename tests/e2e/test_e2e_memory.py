@@ -118,13 +118,12 @@ class TestBlockB_FullUpdate:
 
     @pytest.mark.asyncio
     async def test_b1_needs_full_update_flag(self, e2e_user, mock_llm):
-        """B1: После сообщений → needs_full_update=1 в БД."""
-        # Отправляем 3 msg (не 10, чтобы не триггерить fire-and-forget update)
-        await send_messages(TID, 3, mock_llm["session_manager_claude"])
+        """B1: После 10 сообщений → needs_full_update=1 в БД."""
+        # Отправляем 10 msg чтобы триггерить needs_full_update=1 (каждые 10)
+        await send_messages(TID, 10, mock_llm["session_manager_claude"])
 
         user = await get_user(TID)
-        assert user["messages_total"] == 3
-        # process_message ставит needs_full_update=1 на каждом сообщении (Step 14)
+        assert user["messages_total"] == 10
         assert user["needs_full_update"] == 1
 
     @pytest.mark.asyncio
@@ -381,8 +380,10 @@ class TestBlockD_FullPipeline:
         """D2: mini_update → pending_facts → full_update → profile."""
         await create_empty_profile(TID)
 
-        # Отправляем сообщение с возрастом и именем
+        # Отправляем 3 сообщения (минимальный порог для full_memory_update)
         await process_message(TID, 1, "Мне 28 лет, мой Саша такой хороший", "Маша")
+        await process_message(TID, 2, "Мы живём вместе уже год", "Маша")
+        await process_message(TID, 3, "Работаю дизайнером в студии", "Маша")
 
         # Ждём mini_update (fire-and-forget) — даём asyncio шанс выполнить
         await asyncio.sleep(0.1)

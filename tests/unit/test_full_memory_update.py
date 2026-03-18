@@ -32,6 +32,10 @@ _SAMPLE_USER = {
 _SAMPLE_MESSAGES = [
     {"role": "user", "content": "Привет", "created_at": "2026-03-04 10:30:00"},
     {"role": "assistant", "content": "Привет!", "created_at": "2026-03-04 10:30:05"},
+    {"role": "user", "content": "Мне 28 лет", "created_at": "2026-03-04 10:31:00"},
+    {"role": "assistant", "content": "Рада знакомству!", "created_at": "2026-03-04 10:31:05"},
+    {"role": "user", "content": "Живу в Москве", "created_at": "2026-03-04 10:32:00"},
+    {"role": "assistant", "content": "О, Москва!", "created_at": "2026-03-04 10:32:05"},
 ]
 
 _SAMPLE_EPISODE = Episode(

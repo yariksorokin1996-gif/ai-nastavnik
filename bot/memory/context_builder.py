@@ -217,7 +217,7 @@ async def build_context(
     pause_minutes = _calc_pause(user.get("last_message_at"))
 
     # Шаг 2: параллельный сбор данных
-    profile_text, procedural_text, episodes, patterns, goal, running_summary = (
+    profile_text, procedural_text, episodes, patterns, goal, running_summary, pending_facts = (
         await asyncio.gather(
             _safe_call(get_profile_as_text, telegram_id),
             _safe_call(get_procedural_as_text, telegram_id),
@@ -225,6 +225,7 @@ async def build_context(
             _safe_call(database.get_patterns, telegram_id),
             _safe_call(database.get_active_goal, telegram_id),
             _safe_call(database.get_running_summary, telegram_id),
+            _safe_call(database.get_pending_facts, telegram_id),
         )
     )
 
@@ -248,6 +249,19 @@ async def build_context(
         sections["running_summary"] = f"=== СОДЕРЖАНИЕ РАЗГОВОРА ===\n{running_summary}"
     else:
         sections["running_summary"] = ""
+
+    # Pending facts (из мини-обновлений regex) — имена, возраст, эмоции
+    if pending_facts:
+        facts_lines = []
+        for f in pending_facts:
+            ft = f.get("fact_type", "?")
+            content = f.get("content", "?")
+            facts_lines.append(f"- [{ft}] {content}")
+        sections["pending_facts"] = (
+            "=== СВЕЖИЕ ФАКТЫ (ещё не в профиле) ===\n" + "\n".join(facts_lines)
+        )
+    else:
+        sections["pending_facts"] = ""
 
     sections["episodes"] = _format_episodes(episodes or [], limit=3)
     sections["patterns"] = _format_patterns(patterns or [], limit=5)
@@ -284,8 +298,9 @@ async def build_context(
 
     # Шаг 7: сборка (base_prompt ПЕРВЫМ для prompt caching)
     order = [
-        "base_prompt", "profile", "procedural", "running_summary",
-        "episodes", "patterns", "commitments", "pause_context",
+        "base_prompt", "profile", "pending_facts", "procedural",
+        "running_summary", "episodes", "patterns", "commitments",
+        "pause_context",
     ]
     parts = [sections[k] for k in order if sections.get(k)]
     final_prompt = "\n\n".join(parts)

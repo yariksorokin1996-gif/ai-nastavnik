@@ -299,19 +299,19 @@ async def _process_under_lock(
     # --- Step 12: ASYNC mini memory update (fire-and-forget) ---
     asyncio.create_task(_mini_memory_update(telegram_id, text, response))
 
-    # --- Step 13: ASYNC phase check + memory update (every 5 messages) ---
+    # --- Step 13: ASYNC phase check + memory update (every 10 messages) ---
     messages_total = user.get("messages_total", 0) + 1
-    if messages_total % 5 == 0:
+    if messages_total % 10 == 0:
         asyncio.create_task(_check_phase_transition(telegram_id, messages_total))
-        # Триггер полного обновления памяти каждые 5 сообщений
         asyncio.create_task(_trigger_memory_update(telegram_id))
 
     # --- Step 14: Update counters ---
+    needs_update = 1 if messages_total % 10 == 0 else 0
     await update_user(
         telegram_id,
         last_message_at=_now(),
         messages_total=messages_total,
-        needs_full_update=1,
+        needs_full_update=needs_update,
     )
 
     return response

@@ -15,6 +15,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -32,6 +33,18 @@ from bot.prompts.memory_prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Per-user lock (не запускать два обновления для одного юзера параллельно)
+# ---------------------------------------------------------------------------
+
+_update_locks: dict[int, asyncio.Lock] = {}
+
+
+def _get_update_lock(tid: int) -> asyncio.Lock:
+    """Ленивое создание per-user мьютекса для full_memory_update."""
+    return _update_locks.setdefault(tid, asyncio.Lock())
+
 
 # ---------------------------------------------------------------------------
 # Счётчик ошибок (in-memory, сбрасывается при перезапуске)
@@ -150,7 +163,19 @@ async def update_single_user(telegram_id: int) -> FullUpdateResult:
 
     Не бросает исключений наружу (кроме непойманных).
     Ошибки записываются в result.error.
+    Per-user lock предотвращает параллельные обновления.
     """
+    lock = _get_update_lock(telegram_id)
+    if lock.locked():
+        logger.info("Update already running for %s, skipping", telegram_id)
+        return FullUpdateResult(telegram_id=telegram_id)
+
+    async with lock:
+        return await _update_single_user_impl(telegram_id)
+
+
+async def _update_single_user_impl(telegram_id: int) -> FullUpdateResult:
+    """Реализация полного обновления (вызывается под мьютексом)."""
     result = FullUpdateResult(telegram_id=telegram_id)
     profile_updated = False
     procedural_updated = False
@@ -173,6 +198,15 @@ async def update_single_user(telegram_id: int) -> FullUpdateResult:
             telegram_id, needs_full_update=0, last_full_update_at=_now()
         )
         return result  # early exit, no error
+
+    # Минимальный порог: не обновлять если < 3 user-сообщений
+    user_messages = [m for m in messages if m.get("role") == "user"]
+    if len(user_messages) < 3:
+        logger.info(
+            "Only %d user messages for %s, skipping update (min 3)",
+            len(user_messages), telegram_id,
+        )
+        return result  # НЕ сбрасываем needs_full_update — ждём больше сообщений
 
     # --- Шаг 2: Создать конспект эпизода (с защитой от дубликатов) ---
     ep = None
@@ -247,6 +281,9 @@ async def update_single_user(telegram_id: int) -> FullUpdateResult:
             messages=[{"role": "user", "content": prompt}],
             timeout=15,
             response_format={"type": "json_object"},
+        )
+        logger.info(
+            "GPT profile response for %s: %s", telegram_id, raw[:500]
         )
         diff = json.loads(raw)
 
