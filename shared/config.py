@@ -20,7 +20,7 @@ DB_PATH = os.getenv('DB_PATH', os.path.join(os.path.dirname(os.path.dirname(__fi
 WEBAPP_URL = os.getenv('WEBAPP_URL', '')
 
 OWNER_TELEGRAM_ID = int(os.getenv('OWNER_TELEGRAM_ID', '0'))
-TOKEN_BUDGET_SOFT = 4000
+TOKEN_BUDGET_SOFT = 7000
 RATE_LIMIT_PER_MINUTE = 60
 CLAUDE_TIMEOUT = 30
 GPT_TIMEOUT = 15

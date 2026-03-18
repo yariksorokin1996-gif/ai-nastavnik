@@ -146,7 +146,7 @@ async def test_profile_truncation_removes_strengths_first():
         "Страхи: отказ, конфликт",
     ]
     sections = {
-        "base_prompt": "Ты — Ева. " * 500,
+        "base_prompt": "Ты — Ева. " * 1200,
         "profile": "\n".join(profile_lines),
         "procedural": "Работает: рефлексия " * 100,
         "episodes": "Разговор про работу " * 200,
@@ -203,7 +203,7 @@ async def test_truncation_commitments_only_pending():
     ]
 
     sections = {
-        "base_prompt": "Ты — Ева. " * 500,
+        "base_prompt": "Ты — Ева. " * 1200,
         "profile": "Профиль " * 200,
         "procedural": "Процедурная " * 100,
         "episodes": "Эпизоды " * 200,
