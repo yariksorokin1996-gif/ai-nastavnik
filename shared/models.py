@@ -50,6 +50,7 @@ class Episode(BaseModel):
     commitments: list[str] = Field(default_factory=list)
     techniques_worked: list[str] = Field(default_factory=list)
     techniques_failed: list[str] = Field(default_factory=list)
+    created_at: Optional[str] = None
 
 
 class ProceduralMemory(BaseModel):

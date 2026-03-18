@@ -306,7 +306,13 @@ async def _process_under_lock(
         asyncio.create_task(_trigger_memory_update(telegram_id))
 
     # --- Step 14: Update counters ---
-    needs_update = 1 if messages_total % 10 == 0 else 0
+    pause_minutes = _calc_pause_minutes(user.get("last_message_at"))
+    if pause_minutes and pause_minutes >= 30:
+        needs_update = 1  # Пауза > 30 мин — триггерим обновление памяти
+    elif messages_total % 10 == 0:
+        needs_update = 1
+    else:
+        needs_update = 0
     await update_user(
         telegram_id,
         last_message_at=_now(),

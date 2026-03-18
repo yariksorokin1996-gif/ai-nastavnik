@@ -625,6 +625,35 @@ async def get_episode_headers(telegram_id: int) -> list[dict]:
             return [dict(r) for r in await cur.fetchall()]
 
 
+async def get_episodes_by_date_range(
+    telegram_id: int, date_from: str, date_to: str, limit: int = 4,
+) -> list[dict]:
+    """Эпизоды за период (date_from, date_to — SQL date expressions)."""
+    async with get_db() as db:
+        async with db.execute(
+            f"""SELECT * FROM episodes
+            WHERE telegram_id = ?
+            AND date(created_at) >= {date_from}
+            AND date(created_at) < {date_to}
+            ORDER BY created_at DESC
+            LIMIT ?""",  # noqa: S608
+            (telegram_id, limit),
+        ) as cur:
+            rows = await cur.fetchall()
+            results = []
+            for r in rows:
+                d = dict(r)
+                d["commitments_json"] = _parse_json(d.get("commitments_json"), [])
+                d["techniques_worked_json"] = _parse_json(
+                    d.get("techniques_worked_json"), [],
+                )
+                d["techniques_failed_json"] = _parse_json(
+                    d.get("techniques_failed_json"), [],
+                )
+                results.append(d)
+            return results
+
+
 async def get_episodes_by_ids(ids: list[int]) -> list[dict]:
     if not ids:
         return []

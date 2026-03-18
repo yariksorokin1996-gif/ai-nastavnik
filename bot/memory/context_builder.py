@@ -15,7 +15,11 @@ import logging
 from datetime import datetime, timezone
 
 from bot.memory import database
-from bot.memory.episode_manager import find_relevant_episodes
+from bot.memory.episode_manager import (
+    detect_temporal_query,
+    find_episodes_by_date,
+    find_relevant_episodes,
+)
 from bot.memory.procedural_memory import get_procedural_as_text
 from bot.memory.profile_manager import get_profile_as_text
 from bot.prompts.system_prompt import build_system_prompt
@@ -71,7 +75,9 @@ def _format_episodes(episodes: list[Episode], limit: int = 3) -> str:
         return ""
     lines = ["=== КОНТЕКСТ ПРОШЛЫХ РАЗГОВОРОВ ==="]
     for ep in episodes[:limit]:
-        header = f"- {ep.title}"
+        date_str = (ep.created_at or "")[:10]
+        date_prefix = f"[{date_str}] " if date_str else ""
+        header = f"- {date_prefix}{ep.title}"
         if ep.emotional_tone:
             header += f" ({ep.emotional_tone})"
         lines.append(header)
@@ -216,18 +222,29 @@ async def build_context(
     current_phase = user.get("current_phase", "ЗНАКОМСТВО")
     pause_minutes = _calc_pause(user.get("last_message_at"))
 
-    # Шаг 2: параллельный сбор данных
-    profile_text, procedural_text, episodes, patterns, goal, running_summary, pending_facts = (
+    # Шаг 2: параллельный сбор данных (без эпизодов — они зависят от temporal detection)
+    profile_text, procedural_text, patterns, goal, running_summary, pending_facts = (
         await asyncio.gather(
             _safe_call(get_profile_as_text, telegram_id),
             _safe_call(get_procedural_as_text, telegram_id),
-            _safe_call(find_relevant_episodes, telegram_id, current_message, limit=3),
             _safe_call(database.get_patterns, telegram_id),
             _safe_call(database.get_active_goal, telegram_id),
             _safe_call(database.get_running_summary, telegram_id),
             _safe_call(database.get_pending_facts, telegram_id),
         )
     )
+
+    # Шаг 2b: эпизоды — temporal search (по дате) или semantic search
+    temporal = detect_temporal_query(current_message)
+    if temporal:
+        date_episodes = await _safe_call(
+            find_episodes_by_date, telegram_id, temporal[0], temporal[1], limit=10,
+        )
+        episodes = date_episodes or []
+    else:
+        episodes = await _safe_call(
+            find_relevant_episodes, telegram_id, current_message, limit=3,
+        )
 
     # Шаги цели (если есть)
     steps: list[dict] | None = None
@@ -241,6 +258,9 @@ async def build_context(
     # Шаг 4: форматирование секций
     sections: dict[str, str] = {}
     sections["base_prompt"] = base_prompt
+
+    now_utc = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
+    sections["current_time"] = f"Сейчас: {now_utc}"
 
     sections["profile"] = profile_text if profile_text else _FALLBACK_PROFILE
     sections["procedural"] = procedural_text if procedural_text else _FALLBACK_PROCEDURAL
@@ -298,9 +318,9 @@ async def build_context(
 
     # Шаг 7: сборка (base_prompt ПЕРВЫМ для prompt caching)
     order = [
-        "base_prompt", "profile", "pending_facts", "procedural",
-        "running_summary", "episodes", "patterns", "commitments",
-        "pause_context",
+        "base_prompt", "current_time", "profile", "pending_facts",
+        "procedural", "running_summary", "episodes", "patterns",
+        "commitments", "pause_context",
     ]
     parts = [sections[k] for k in order if sections.get(k)]
     final_prompt = "\n\n".join(parts)

@@ -2,7 +2,9 @@
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
+from typing import Optional
 
 from shared.llm_client import LLMError, call_gpt
 from shared.models import Episode
@@ -77,6 +79,7 @@ def _map_dict_to_episode(d: dict) -> Episode:
         commitments=d.get("commitments_json", []),
         techniques_worked=d.get("techniques_worked_json", []),
         techniques_failed=d.get("techniques_failed_json", []),
+        created_at=d.get("created_at"),
     )
 
 
@@ -102,6 +105,68 @@ def _keyword_fallback(
         if len(matched_ids) >= limit:
             break
     return matched_ids
+
+
+# ---------------------------------------------------------------------------
+# Temporal detection (поиск эпизодов по дате)
+# ---------------------------------------------------------------------------
+
+TEMPORAL_KEYWORDS: dict[str, tuple[int, int]] = {
+    "вчера": (-1, 0),
+    "сегодня": (0, 1),
+    "позавчера": (-2, -1),
+    "на прошлой неделе": (-14, -7),
+    "на этой неделе": (-7, 1),
+    "неделю назад": (-10, -4),
+    "пару недель назад": (-21, -7),
+    "две недели назад": (-21, -7),
+    "месяц назад": (-40, -20),
+    "пару дней назад": (-3, -1),
+    "несколько дней назад": (-5, -1),
+}
+
+
+def detect_temporal_query(text: str) -> Optional[tuple[str, str]]:
+    """Если есть временной маркер — возвращает (date_from, date_to) для SQL."""
+    text_lower = text.lower()
+
+    for marker, (d_from, d_to) in TEMPORAL_KEYWORDS.items():
+        if marker in text_lower:
+            return (
+                f"date('now', '{d_from:+d} day')",
+                f"date('now', '{d_to:+d} day')",
+            )
+
+    match = re.search(r"(\d+)\s*дн\w*\s*назад", text_lower)
+    if match:
+        days = int(match.group(1))
+        return (
+            f"date('now', '{-(days + 1):+d} day')",
+            f"date('now', '{-(days - 1):+d} day')",
+        )
+
+    match = re.search(r"(\d+)\s*недел\w*\s*назад", text_lower)
+    if match:
+        weeks = int(match.group(1))
+        return (
+            f"date('now', '{-(weeks * 7 + 3):+d} day')",
+            f"date('now', '{-(weeks * 7 - 3):+d} day')",
+        )
+
+    return None
+
+
+async def find_episodes_by_date(
+    telegram_id: int,
+    date_from: str,
+    date_to: str,
+    limit: int = 4,
+) -> list[Episode]:
+    """Поиск эпизодов по дате."""
+    rows = await database.get_episodes_by_date_range(
+        telegram_id, date_from, date_to, limit=limit,
+    )
+    return [_map_dict_to_episode(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------

@@ -75,10 +75,13 @@ def _now() -> str:
 
 
 def _format_messages(messages: list[dict], limit: int = 20) -> str:
-    """Форматирует сообщения для промпта running summary."""
-    return "\n".join(
-        f"{m['role']}: {m['content']}" for m in messages[-limit:]
-    )
+    """Форматирует сообщения для промпта running summary (с timestamps)."""
+    lines = []
+    for m in messages[-limit:]:
+        ts = m.get("created_at", "")[:16] if m.get("created_at") else ""
+        prefix = f"[{ts}] " if ts else ""
+        lines.append(f"{prefix}{m['role']}: {m['content']}")
+    return "\n".join(lines)
 
 
 async def _update_running_summary(old_summary: str, messages: list[dict]) -> str:
@@ -244,7 +247,16 @@ async def _update_single_user_impl(telegram_id: int) -> FullUpdateResult:
         result.error = str(exc)
         return result  # без эпизода дальше не идём
 
-    # --- Шаг 2b: Обновить running summary ---
+    # --- Шаг 2b: Daily reset running summary (5:00 UTC) ---
+    last_update_date = (last_update or "2020-01-01")[:10]
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now_hour = datetime.now(timezone.utc).hour
+
+    if last_update_date < today and now_hour >= 5:
+        await database.save_running_summary(telegram_id, "")
+        logger.info("Daily reset: running summary cleared for %s", telegram_id)
+
+    # --- Шаг 2c: Обновить running summary ---
     try:
         old_summary = await database.get_running_summary(telegram_id)
         new_summary = await _update_running_summary(old_summary, messages)
@@ -303,28 +315,6 @@ async def _update_single_user_impl(telegram_id: int) -> FullUpdateResult:
         if not result.error:
             result.error = str(exc)
         # Продолжаем к шагу 4 — эпизод уже создан
-
-    # --- Шаг 3b: Сжатие running summary (без GPT) ---
-    try:
-        current_summary = await database.get_running_summary(telegram_id)
-        if current_summary and len(current_summary.split()) > 400:
-            profile_data = current_profile.model_dump() if current_profile else {}
-            filled = sum(
-                1 for v in profile_data.values()
-                if v and v != [] and v != {}
-            )
-            if filled >= 5 and profile_updated:
-                words = current_summary.split()
-                trimmed = " ".join(words[-200:])
-                await database.save_running_summary(telegram_id, trimmed)
-                logger.info(
-                    "Running summary trimmed for %s (%d→200 words)",
-                    telegram_id, len(words),
-                )
-    except Exception as exc:
-        logger.warning(
-            "Summary trim failed for %s: %s", telegram_id, exc
-        )
 
     # --- Шаг 4: Обновить процедурную память ---
     try:

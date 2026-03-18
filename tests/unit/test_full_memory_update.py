@@ -12,6 +12,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import logging
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -26,7 +27,7 @@ from shared.models import Episode, FullUpdateResult, SemanticProfile
 
 _SAMPLE_USER = {
     "telegram_id": 123,
-    "last_full_update_at": "2026-03-04 10:00:00",
+    "last_full_update_at": datetime.now(timezone.utc).strftime("%Y-%m-%d 10:00:00"),
 }
 
 _SAMPLE_MESSAGES = [
@@ -457,8 +458,9 @@ async def test_duplicate_episode_protection(
     mock_db.get_user = AsyncMock(return_value=dict(_SAMPLE_USER))
     mock_db.get_messages_since = AsyncMock(return_value=list(_SAMPLE_MESSAGES))
     # Эпизод уже существует, created_at >= last_full_update_at
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     mock_db.get_episode_headers = AsyncMock(return_value=[
-        {"id": 99, "title": "Existing episode", "created_at": "2026-03-04 10:35:00"},
+        {"id": 99, "title": "Existing episode", "created_at": f"{today} 10:35:00"},
     ])
     mock_db.get_episodes_by_ids = AsyncMock(return_value=[
         {
