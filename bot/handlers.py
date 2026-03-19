@@ -88,7 +88,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("💬 По душам", callback_data="mode_indicator")],
         ])
-        pin_msg = await update.message.reply_text("\u2800", reply_markup=keyboard)
+        pin_msg = await update.message.reply_text("·", reply_markup=keyboard)
         await pin_msg.pin(disable_notification=True)
         await database.update_user(telegram_id, pinned_mode_msg_id=pin_msg.message_id)
     except Exception as exc:
