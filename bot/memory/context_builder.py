@@ -262,6 +262,7 @@ async def build_context(
     now_utc = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
     sections["current_time"] = f"Сейчас: {now_utc}"
 
+    sections["memory_header"] = "--- ДАННЫЕ О НЕЙ ---"
     sections["profile"] = profile_text if profile_text else _FALLBACK_PROFILE
     sections["procedural"] = procedural_text if procedural_text else _FALLBACK_PROCEDURAL
 
@@ -318,9 +319,9 @@ async def build_context(
 
     # Шаг 7: сборка (base_prompt ПЕРВЫМ для prompt caching)
     order = [
-        "base_prompt", "current_time", "profile", "pending_facts",
-        "procedural", "running_summary", "episodes", "patterns",
-        "commitments", "pause_context",
+        "base_prompt", "current_time", "memory_header", "profile",
+        "pending_facts", "procedural", "running_summary", "episodes",
+        "patterns", "commitments", "pause_context",
     ]
     parts = [sections[k] for k in order if sections.get(k)]
     final_prompt = "\n\n".join(parts)

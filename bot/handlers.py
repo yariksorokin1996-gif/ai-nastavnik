@@ -52,32 +52,47 @@ async def _check_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> b
 
 START_MESSAGE = (
     "Привет! Я Ева 💛\n\n"
-    "Я не бот в обычном смысле — я подруга, которая слушает "
-    "и помнит то, чем ты делишься. Не осуждаю, не лезу "
-    "с советами, не исчезаю.\n\n"
+    "Я подруга, которая слушает и помнит. "
+    "Не осуждаю, не лезу с советами, не исчезаю.\n\n"
     "Пиши текстом или голосовыми — как удобнее.\n\n"
     "У меня два режима:\n"
-    "🎯 /goal — «Идём к цели» — помогу разобраться и подсвечу "
-    "то, что ты сама можешь не замечать\n"
-    "💬 /soul — «По душам» — просто поговорим, без анализа\n\n"
+    "💬 /soul — по душам, просто поболтать\n"
+    "🎯 /goal — к цели, с пинками и подсветкой\n\n"
+    "Сейчас стоит «по душам». Переключай когда захочешь.\n\n"
     "Расскажи, что у тебя сейчас происходит?"
 )
 
 HELP_MESSAGE = (
     "Команды:\n"
-    "/goal — режим «Идём к цели»\n"
-    "/soul — режим «По душам»\n"
+    "💬 /soul — по душам\n"
+    "🎯 /goal — к цели\n"
     "/about — что умеет Ева"
 )
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /start — тёплое приветствие."""
+    """Команда /start — тёплое приветствие + pin с режимом."""
     if not await _check_access(update, context):
         return
+    telegram_id = update.effective_user.id
+
+    # Дефолтный режим — soul
+    await database.update_user(telegram_id, conversation_mode="soul")
+
     await update.message.reply_text(
         START_MESSAGE, reply_markup=ReplyKeyboardRemove(),
     )
+
+    # Pinned message с индикатором режима
+    try:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💬 По душам", callback_data="mode_indicator")],
+        ])
+        pin_msg = await update.message.reply_text("\u2800", reply_markup=keyboard)
+        await pin_msg.pin(disable_notification=True)
+        await database.update_user(telegram_id, pinned_mode_msg_id=pin_msg.message_id)
+    except Exception:
+        logger.warning("Failed to pin mode indicator for user %s", telegram_id)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -145,13 +160,46 @@ async def delete_account_command(update: Update, context: ContextTypes.DEFAULT_T
     )
 
 
+_MODE_LABELS = {
+    "soul": "💬 По душам",
+    "goal": "🎯 К цели",
+}
+
+
+async def _update_mode_indicator(
+    context: ContextTypes.DEFAULT_TYPE,
+    telegram_id: int,
+    mode: str,
+) -> None:
+    """Обновляет inline-кнопку на закреплённом сообщении."""
+    user = await get_user(telegram_id)
+    if not user:
+        return
+    pinned_id = user.get("pinned_mode_msg_id")
+    if not pinned_id:
+        return
+    label = _MODE_LABELS.get(mode, _MODE_LABELS["soul"])
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(label, callback_data="mode_indicator")],
+    ])
+    try:
+        await context.bot.edit_message_reply_markup(
+            chat_id=telegram_id,
+            message_id=pinned_id,
+            reply_markup=keyboard,
+        )
+    except Exception:
+        logger.debug("Could not update mode indicator for %s", telegram_id)
+
+
 async def goal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /goal — режим «Идём к цели»."""
+    """Команда /goal — режим «К цели»."""
     telegram_id = update.effective_user.id
     await database.update_user(telegram_id, conversation_mode="goal")
     await update.message.reply_text(
         "Окей, фокус на цели. Рассказывай, что хочешь изменить?",
     )
+    await _update_mode_indicator(context, telegram_id, "goal")
 
 
 async def soul_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -161,20 +209,20 @@ async def soul_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Окей, просто поболтаем. Я тут, рассказывай.",
     )
+    await _update_mode_indicator(context, telegram_id, "soul")
 
 
 async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /about — что умеет Ева."""
     await update.message.reply_text(
-        "Я Ева — подруга, которая слушает.\n\n"
+        "Я Ева — подруга, которая слушает и помнит.\n\n"
         "Что я умею:\n"
         "— Слушать и помнить то, чем делишься\n"
         "— Замечать повторения и мягко говорить о них\n"
-        "— Помогать увидеть ситуацию иначе — через вопросы, не советы\n"
         "— Быть рядом когда тяжело — без нравоучений\n\n"
         "Режимы:\n"
-        "/goal — Идём к цели\n"
-        "/soul — По душам",
+        "💬 /soul — по душам, просто поболтать\n"
+        "🎯 /goal — к цели, с пинками и подсветкой",
     )
 
 
@@ -254,6 +302,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
+
+    if data == "mode_indicator":
+        await query.answer("Переключи через /goal или /soul", show_alert=False)
+        return
 
     if data == "forget_confirm":
         telegram_id = query.from_user.id

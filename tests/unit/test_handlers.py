@@ -70,29 +70,40 @@ def make_context():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_start_contains_eva() -> None:
+@patch("bot.handlers.database.update_user", new_callable=AsyncMock)
+async def test_start_contains_eva(mock_update_user: AsyncMock) -> None:
     """Команда /start — ответ содержит 'Ева'."""
     update = make_update()
     context = make_context()
+    # pin_msg mock
+    pin_msg = MagicMock()
+    pin_msg.message_id = 999
+    pin_msg.pin = AsyncMock()
+    update.message.reply_text = AsyncMock(side_effect=[MagicMock(), pin_msg])
 
     await start(update, context)
 
-    update.message.reply_text.assert_called_once()
-    text = update.message.reply_text.call_args[0][0]
+    # Первый вызов — START_MESSAGE
+    text = update.message.reply_text.call_args_list[0][0][0]
     assert "Ева" in text
 
 
 @pytest.mark.asyncio
-async def test_start_contains_mode_descriptions() -> None:
+@patch("bot.handlers.database.update_user", new_callable=AsyncMock)
+async def test_start_contains_mode_descriptions(mock_update_user: AsyncMock) -> None:
     """Команда /start — ответ содержит описание режимов."""
     update = make_update()
     context = make_context()
+    pin_msg = MagicMock()
+    pin_msg.message_id = 999
+    pin_msg.pin = AsyncMock()
+    update.message.reply_text = AsyncMock(side_effect=[MagicMock(), pin_msg])
 
     await start(update, context)
 
-    text = update.message.reply_text.call_args[0][0]
-    assert "Идём к цели" in text
-    assert "По душам" in text
+    text = update.message.reply_text.call_args_list[0][0][0]
+    assert "soul" in text or "По душам" in text
+    assert "goal" in text or "К цели" in text or "к цели" in text
 
 
 @pytest.mark.asyncio

@@ -320,6 +320,13 @@ async def init_db():
             logger.info("Migration: added conversation_mode column")
         except Exception:
             pass  # Column already exists
+        # Migration: add pinned_mode_msg_id to users
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN pinned_mode_msg_id INTEGER")
+            await db.commit()
+            logger.info("Migration: added pinned_mode_msg_id column")
+        except Exception:
+            pass  # Column already exists
     logger.info("init_db: таблицы готовы (%s)", DB_PATH)
 
 
@@ -338,6 +345,7 @@ _USER_UPDATABLE_FIELDS = frozenset({
     "last_full_update_at",
     "last_automated_msg_at",
     "conversation_mode",
+    "pinned_mode_msg_id",
     "updated_at",
 })
 
