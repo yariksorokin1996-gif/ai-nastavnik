@@ -91,8 +91,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pin_msg = await update.message.reply_text("\u2800", reply_markup=keyboard)
         await pin_msg.pin(disable_notification=True)
         await database.update_user(telegram_id, pinned_mode_msg_id=pin_msg.message_id)
-    except Exception:
-        logger.warning("Failed to pin mode indicator for user %s", telegram_id)
+    except Exception as exc:
+        logger.error("Failed to pin mode indicator for user %s: %s", telegram_id, exc, exc_info=True)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
