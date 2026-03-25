@@ -364,8 +364,8 @@ async def create_user(telegram_id: int, name: str = None) -> dict:
     async with get_db() as db:
         await db.execute(
             """INSERT OR IGNORE INTO users
-               (telegram_id, name, created_at, updated_at)
-               VALUES (?, ?, ?, ?)""",
+               (telegram_id, name, conversation_mode, created_at, updated_at)
+               VALUES (?, ?, 'soul', ?, ?)""",
             (telegram_id, name, now, now),
         )
         await db.commit()
