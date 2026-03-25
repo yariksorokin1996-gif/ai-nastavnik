@@ -1,4 +1,4 @@
-"""LLM-обёртка: единый интерфейс к Claude и GPT."""
+"""LLM-обёртка: единый интерфейс к Claude, GPT и Gemini."""
 from __future__ import annotations
 
 import asyncio
@@ -13,6 +13,9 @@ from shared.config import (
     CLAUDE_MODEL,
     CLAUDE_TIMEOUT,
     FALLBACK_RESPONSE,
+    GEMINI_API_KEY,
+    GEMINI_MODEL,
+    GEMINI_TIMEOUT,
     GPT_MODEL,
     GPT_TIMEOUT,
     OPENAI_API_KEY,
@@ -22,6 +25,14 @@ logger = logging.getLogger(__name__)
 
 _claude_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 _gpt_client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+# Gemini через OpenAI-совместимый API
+_gemini_client: openai.AsyncOpenAI | None = None
+if GEMINI_API_KEY:
+    _gemini_client = openai.AsyncOpenAI(
+        api_key=GEMINI_API_KEY,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    )
 
 
 class LLMError(Exception):
@@ -120,5 +131,51 @@ async def call_gpt(
             if attempt < max_attempts:
                 delay = attempt
                 await asyncio.sleep(delay)
+
+    raise LLMError(str(last_error))
+
+
+async def call_gemini(
+    messages: list[dict],
+    system: str,
+    max_tokens: int = 500,
+    timeout: int = GEMINI_TIMEOUT,
+    model_override: str | None = None,
+) -> str:
+    """Gemini для диалога через OpenAI-совместимый API."""
+    if _gemini_client is None:
+        raise LLMError("GEMINI_API_KEY not configured")
+
+    full_messages = [{"role": "system", "content": system}, *messages]
+    use_model = model_override or GEMINI_MODEL
+    max_attempts = 2
+    last_error: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        t0 = time.monotonic()
+        try:
+            coro = _gemini_client.chat.completions.create(
+                model=use_model,
+                messages=full_messages,
+                max_tokens=max_tokens,
+            )
+            response = await asyncio.wait_for(coro, timeout=timeout)
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            in_tok = response.usage.prompt_tokens if response.usage else 0
+            out_tok = response.usage.completion_tokens if response.usage else 0
+            logger.info(
+                'call_gemini model=%s input_tokens=%d output_tokens=%d latency_ms=%d',
+                use_model, in_tok, out_tok, latency_ms,
+            )
+            if not response.choices:
+                raise LLMError("Gemini returned empty response")
+            return response.choices[0].message.content
+        except openai.AuthenticationError as e:
+            logger.error('call_gemini auth error: %s', str(e))
+            raise LLMError(str(e)) from e
+        except (asyncio.TimeoutError, openai.APIError) as e:
+            logger.error('call_gemini error: %s', str(e))
+            last_error = e
+            if attempt < max_attempts:
+                await asyncio.sleep(1)
 
     raise LLMError(str(last_error))

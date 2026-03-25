@@ -40,7 +40,7 @@ from shared.config import (
     FALLBACK_RESPONSE,
     RATE_LIMIT_PER_MINUTE,
 )
-from shared.llm_client import LLMError, call_claude, call_gpt
+from shared.llm_client import LLMError, call_claude, call_gemini, call_gpt
 from shared.safety import (
     CRISIS_INSTRUCTION_LEVEL2,
     CRISIS_RESPONSE_LEVEL3,
@@ -244,6 +244,20 @@ async def _process_under_lock(
                 system=system_prompt,
                 max_tokens=400,
                 model_override=DIALOG_GPT_MODEL,
+            )
+        elif DIALOG_PROVIDER == "gemini-flash":
+            response = await call_gemini(
+                messages=messages_for_claude,
+                system=system_prompt,
+                max_tokens=400,
+                model_override="gemini-2.5-flash",
+            )
+        elif DIALOG_PROVIDER == "gemini-pro":
+            response = await call_gemini(
+                messages=messages_for_claude,
+                system=system_prompt,
+                max_tokens=400,
+                model_override="gemini-2.5-pro",
             )
         else:
             response = await call_claude(

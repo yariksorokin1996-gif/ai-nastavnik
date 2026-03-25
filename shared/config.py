@@ -10,11 +10,14 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 
 CLAUDE_MODEL = os.getenv('CLAUDE_MODEL_MAIN', 'claude-sonnet-4-5')
 GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o-mini')
 DIALOG_PROVIDER = os.getenv('DIALOG_PROVIDER', 'claude')
 DIALOG_GPT_MODEL = os.getenv('DIALOG_GPT_MODEL', 'gpt-4.1-mini')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+GEMINI_TIMEOUT = 30
 
 DB_PATH = os.getenv('DB_PATH', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'nastavnik.db'))
 WEBAPP_URL = os.getenv('WEBAPP_URL', '')
